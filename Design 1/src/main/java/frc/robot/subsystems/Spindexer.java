@@ -1,5 +1,5 @@
 package frc.robot.subsystems;
 
-public class Orchestra {
+public class Spindexer {
     
 }

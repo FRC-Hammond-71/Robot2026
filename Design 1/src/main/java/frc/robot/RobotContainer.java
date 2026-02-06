@@ -67,26 +67,9 @@ public class RobotContainer {
 
 
 
-    void setAlliance() {
-        var alliance = DriverStation.getAlliance();
-		 if(alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red) {
-            x = joystick.getLeftY();
-            y = joystick.getLeftX();
-            z = joystick.getRightX();
-         }
-         else {
-         x = -joystick.getLeftY();
-         y = -joystick.getLeftX();
-         z = -joystick.getRightX();
-         }
-    }
-
-
-
     private void configureBindings() {
         // Note that X is defined as forward according to WPILib convention,
         // and Y is defined as to the left according to WPILib convention.
-        setAlliance();
         drivetrain.setDefaultCommand(
             // Drivetrain will execute this command periodically
             drivetrain.applyRequest(() ->
@@ -103,10 +86,10 @@ public class RobotContainer {
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
-        joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
-        joystick.b().whileTrue(drivetrain.applyRequest(() ->
-            point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
-        ));
+        // joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
+        // joystick.b().whileTrue(drivetrain.applyRequest(() ->
+        //     point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
+        // ));
 
         joystick.rightBumper()
         .whileTrue(intake.intakeCommand(0.3));
