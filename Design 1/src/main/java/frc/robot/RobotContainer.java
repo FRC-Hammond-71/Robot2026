@@ -10,7 +10,6 @@ import java.util.Optional;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -20,6 +19,7 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.subsystems.Intake;
+import frc.robot.subsystems.Spindexer;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Climber;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
@@ -27,7 +27,6 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 
 public class RobotContainer {
-    // private final SendableChooser<Command> autoChooser;
     
     //#region Initialization
     private double MaxSpeed = 1 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -38,6 +37,7 @@ public class RobotContainer {
     public double z;
     private final Intake intake = new Intake();
     private final Climber climber = new Climber();
+    private final Spindexer spindexer = new Spindexer();
 
     /* Setting up bindings for neces]\[
      sary control of the swerve drive platform */
@@ -49,6 +49,7 @@ public class RobotContainer {
     private final Telemetry logger = new Telemetry(MaxSpeed);
     private final CommandXboxController joystick = new CommandXboxController(0);
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+    private final SendableChooser<Command> autoChooser;
 
 
     //#endregion
@@ -58,11 +59,11 @@ public class RobotContainer {
 
 
     public RobotContainer() {
-        // autoChooser = AutoBuilder.buildAutoChooser();
-        // SmartDashboard.putData("Auto Selection", autoChooser);
+
+        autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()`
         
         configureBindings();
-        CommandScheduler.getInstance().schedule(FollowPathCommand.warmupCommand());
+        SmartDashboard.putData("Auto Mode", autoChooser);
     }
 
 
@@ -101,6 +102,11 @@ public class RobotContainer {
         joystick.pov(0)
         .whileTrue(climber.upCommand(1));
 
+        joystick.pov(90)
+        .whileTrue(spindexer.clockwiseCommand(1));
+        joystick.pov(270)
+        .whileTrue(spindexer.counterClockwiseCommand(1));
+
 
         // // Run SysId routines when holding back/start and X/Y.
         // // Note that each routine should be run exactly once in a single log.
@@ -113,6 +119,7 @@ public class RobotContainer {
         joystick.y().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
         drivetrain.registerTelemetry(logger::telemeterize);
+        SmartDashboard.putData("Auto Selection", autoChooser);
     }
 
     // public Command getAutonomousCommand() {
@@ -136,13 +143,14 @@ public class RobotContainer {
         // return autoChooser.getSelected();
     // }
 
-    // public Command getAutonomousCommand() {
-    //     // This method loads the auto when it is called, however, it is recommended
-    //     // to first load your paths/autos when code starts, then return the
-    //     // pre-loaded auto/path
-    //     // return autoChooser.getSelected();
-    //       }
-    // TODO: FIX AUTO
+
+
+    public Command getAutonomousCommand() {
+        // This method loads the auto when it is called, however, it is recommended
+        // to first load your paths/autos when code starts, then return the
+        // pre-loaded auto/path
+        return autoChooser.getSelected();
+    }
           
 
 

@@ -27,7 +27,7 @@ public class Robot extends TimedRobot {
     private final RobotContainer m_robotContainer;
 	private final XboxController controller;
     /* log and replay timestamp and joystick data */
-	// private SendableChooser<Command> autoChooser;
+	private SendableChooser<Command> autoChooser;
     private Command semiAutomatedCommand = null;
     private StructPublisher<Pose2d> autoTargetPosePublisher = NetworkTableInstance.getDefault().getStructTopic("targetPose", Pose2d.struct).publish();
     public Intake intake = new Intake();
@@ -62,7 +62,7 @@ public class Robot extends TimedRobot {
 
     @Override
     public void autonomousInit() {
-        // m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+        m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
         if (m_autonomousCommand != null) {
             CommandScheduler.getInstance().schedule(m_autonomousCommand);

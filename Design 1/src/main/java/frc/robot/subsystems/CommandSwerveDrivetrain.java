@@ -64,10 +64,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
         private final SwerveRequest.SysIdSwerveRotation m_rotationCharacterization = new SwerveRequest.SysIdSwerveRotation();
     
-    
-    
-    
-    
         /* SysId routine for characterizing translation. This is used to find PID gains for the drive motors. */
         private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
             new SysIdRoutine.Config(
@@ -84,19 +80,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             )
         );
     
-    
-    
         public void configureAutoBuilder() {
-
-            try{
-                config = RobotConfig.fromGUISettings();
-              } catch (Exception e) {
-                // Handle exception as needed
-                e.printStackTrace();
-              }
-        
             try {
                 var config = RobotConfig.fromGUISettings();
+
                 AutoBuilder.configure(
                     () -> getState().Pose,   // Supplier of current robot pose
                     this::resetPose,         // Consumer for seeding pose against auto
@@ -121,7 +108,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             } catch (Exception ex) {
                 DriverStation.reportError("Failed to load PathPlanner config and configure AutoBuilder", ex.getStackTrace());
             }
-        }
+        };
+    
+
     
     
     
@@ -189,6 +178,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             if (Utils.isSimulation()) {
                 startSimThread();
             }
+            configureAutoBuilder();
         }
     
     
