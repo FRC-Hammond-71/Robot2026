@@ -33,20 +33,20 @@ public class Climber extends SubsystemBase {
         motor.set(0);
     }
 
-    public Command upCommand() { return CommandUtils.withName(("up"),upCommand(0.1));}
-    public Command downCommand() { return CommandUtils.withName(("down"),downCommand(0.1));}
+    public Command upCommand() { return CommandUtils.withName(("up"),upCommand(0.2));}
+    public Command downCommand() { return CommandUtils.withName(("down"),downCommand(0.2));}
 
 
     public Command upCommand(double speed) {
         return new RunCommand(
-            () -> up(0.5),
+            () -> up(1),
             this
         ).finallyDo(this::stop);
     }
 
     public Command downCommand(double speed) {
         return new RunCommand(
-            () -> down(0.5
+            () -> down(1
             ),
             this
         ).finallyDo(this::stop);

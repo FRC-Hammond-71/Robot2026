@@ -90,6 +90,7 @@ public class RobotContainer {
         // joystick.b().whileTrue(drivetrain.applyRequest(() ->
         //     point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         // ));
+        
 
         joystick.rightBumper()
         .whileTrue(intake.intakeCommand(0.3));
@@ -144,7 +145,7 @@ public class RobotContainer {
     // }
 
 
-
+    
     public Command getAutonomousCommand() {
         // This method loads the auto when it is called, however, it is recommended
         // to first load your paths/autos when code starts, then return the

@@ -21,17 +21,23 @@ import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.Odometry;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.trajectory.constraint.MaxVelocityConstraint;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.Limelight.Limelight;
 import frc.robot.Limelight.LimelightHelpers;
 import frc.robot.Limelight.LimelightHelpers.PoseEstimate;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
@@ -47,7 +53,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private Notifier m_simNotifier = null;
     private double m_lastSimTime;
     RobotConfig config;
-
     /* Blue alliance sees forward as 0 degrees (toward red alliance wall) */
     private static final Rotation2d kBlueAlliancePerspectiveRotation = Rotation2d.kZero;
     /* Red alliance sees forward as 180 degrees (toward blue alliance wall) */
@@ -55,10 +60,21 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         private static final PathConstraints PathConstraints = null;
         /* Keep track if we've ever applied the operator perspective before or not */
         private boolean m_hasAppliedOperatorPerspective = false;
-    
+        
         /** Swerve request to apply during robot-centric path following */
         private final SwerveRequest.ApplyRobotSpeeds m_pathApplyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
-    
+           private StructPublisher<Pose2d> posePublisher = NetworkTableInstance.getDefault()
+           .getStructTopic("rPose", Pose2d.struct).publish();
+
+        private StructPublisher<Pose2d> llRawPosePublisher = NetworkTableInstance.getDefault()
+            .getStructTopic("ll_RawPose", Pose2d.struct).publish();
+            
+        private StructPublisher<Pose2d> llMegaTagPosePublisher = NetworkTableInstance.getDefault()
+            .getStructTopic("ll_MegaTagPose", Pose2d.struct).publish();
+
+        private StructPublisher<Pose2d> llStablePosePublisher = NetworkTableInstance.getDefault()
+            .getStructTopic("ll_StablePose", Pose2d.struct).publish();
+        public Odometry odometry;
         /* Swerve requests to apply during SysId characterization */
         private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
         private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
@@ -80,6 +96,40 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             )
         );
     
+        public void updateOdometry() 
+        {
+            Pose2d estimatedPose = this.getState().Pose;
+            Rotation2d gyroHeading = this.getState().RawHeading;
+            ChassisSpeeds speeds = this.getState().Speeds;
+            Limelight limelight = Limelight.useDevice("limelight");
+    
+            boolean useVision = SmartDashboard.getBoolean("Drivetrain/useVision", true);
+    
+            Optional<Pose2d> rawResult = limelight.getRawEstimatedPose();
+            Optional<Pose2d> megaTagResult = limelight.getMegaTag2EstimatedPose(gyroHeading, speeds);
+            Optional<Pose2d> stablePose = limelight.getStableEstimatedPose(estimatedPose, gyroHeading, speeds);
+    
+            if (rawResult.isPresent())
+            {
+            	this.llRawPosePublisher.set(rawResult.get());
+            }
+            if (megaTagResult.isPresent())
+            {
+            	this.llMegaTagPosePublisher.set(megaTagResult.get());
+            }
+            if (stablePose.isPresent())
+            {
+            	Pose2d newStablePose = new Pose2d(stablePose.get().getTranslation(), estimatedPose.getRotation());
+    
+            	// Only contribute the stablePose to Pose Estimation!
+            	if (useVision)
+            	{
+                    addVisionMeasurement(newStablePose, Timer.getFPGATimestamp() - limelight.getLatencyInSeconds());
+            	}
+            	this.llStablePosePublisher.set(newStablePose);
+            }
+            this.posePublisher.set(this.getState().Pose);
+        }
         public void configureAutoBuilder() {
             try {
                 var config = RobotConfig.fromGUISettings();
@@ -182,7 +232,16 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         }
     
     
-    
+    public boolean resetPoseWithLimelight() {
+		Optional<Pose2d> es = Limelight.useDevice("limelight").getRawEstimatedPose();
+
+		if (es.isPresent())
+		{
+			this.resetPose(es.get());
+			return true;
+		}
+		return false;
+	}
         /**
          * Constructs a CTRE SwerveDrivetrain using the specified constants.
          * <p>
@@ -285,7 +344,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
              * This ensures driving behavior doesn't change until an explicit disable event occurs during testing.
              */
     
-            // LimelightHelpers.getBotPose2d_wpiBlue("limelight");
+            LimelightHelpers.getBotPose2d_wpiBlue("limelight");
 
             if (!m_hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
                 DriverStation.getAlliance().ifPresent(allianceColor -> {
@@ -297,6 +356,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     m_hasAppliedOperatorPerspective = true;
                 });
             }
+
+            updateOdometry();
+
         }
     
         private void startSimThread() {
