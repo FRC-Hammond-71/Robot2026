@@ -33,7 +33,6 @@ public class Robot extends TimedRobot {
     public Intake intake = new Intake();
     public Limelight Limelight;
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-
     //#region Pathplanner
     private final HootAutoReplay m_timeAndJoystickReplay = new HootAutoReplay()
         .withTimestampReplay()
@@ -78,7 +77,6 @@ public class Robot extends TimedRobot {
 
     @Override
     public void teleopInit() {
-
     }
 
 

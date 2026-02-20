@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.subsystems.Intake;
+import frc.robot.subsystems.Shooter;
 import frc.robot.subsystems.Spindexer;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Climber;
@@ -36,6 +37,7 @@ public class RobotContainer {
     public double y; 
     public double z;
     private final Intake intake = new Intake();
+    private final Shooter shooter = new Shooter();
     private final Climber climber = new Climber();
     private final Spindexer spindexer = new Spindexer();
 
@@ -93,10 +95,10 @@ public class RobotContainer {
         
 
         joystick.rightBumper()
-        .whileTrue(intake.intakeCommand(0.3));
+        .whileTrue(shooter.intakeCommand(1));
 
         joystick.leftBumper()
-        .whileTrue(intake.intakeCommand(-0.3));
+        .whileTrue(shooter.intakeCommand(-1));
 
         joystick.pov(180)
         .whileTrue(climber.downCommand(1));
