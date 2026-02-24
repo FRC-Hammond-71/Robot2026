@@ -9,7 +9,12 @@ import static edu.wpi.first.units.Units.*;
 import java.util.Optional;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
+import com.ctre.phoenix6.Utils;
+import com.ctre.phoenix6.swerve.SwerveDrivetrain;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
+import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
+
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -21,11 +26,14 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.subsystems.Intake;
 import frc.robot.subsystems.Shooter;
 import frc.robot.subsystems.Spindexer;
+import frc.robot.generated.FieldConstants;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Climber;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
+import frc.robot.subsystems.Turret;
+import frc.robot.util.dashboard.TurretUtil;
 
 public class RobotContainer {
     
@@ -40,7 +48,8 @@ public class RobotContainer {
     private final Shooter shooter = new Shooter();
     private final Climber climber = new Climber();
     private final Spindexer spindexer = new Spindexer();
-
+    private final Turret turret = new Turret();
+    
     /* Setting up bindings for neces]\[
      sary control of the swerve drive platform */
 
@@ -56,8 +65,6 @@ public class RobotContainer {
 
     //#endregion
     //#region Commands
-
-
 
 
     public RobotContainer() {
