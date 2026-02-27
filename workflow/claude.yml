@@ -1,0 +1,53 @@
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+---
+
+**Step 3: Verify your API key secret**
+
+Go to your repo → **Settings → Secrets and variables → Actions**
+
+Confirm there is a secret named exactly `ANTHROPIC_API_KEY`. Capital letters, underscores — must match exactly.
+
+If it's missing, you need an Anthropic API key from `console.anthropic.com` and add it there.
+
+---
+
+**Step 4: Confirm GitHub App repo access**
+
+Go to your **GitHub org or account → Settings → Integrations → GitHub Apps → Claude**
+
+Confirm it shows your FRC repo in the list of repositories it has access to. If not, click Configure and add it.
+
+---
+
+**Step 5: Test**
+
+Once the workflow file is committed to your **default branch** (usually `main`), open an issue and comment:
+```
+@claude say hello

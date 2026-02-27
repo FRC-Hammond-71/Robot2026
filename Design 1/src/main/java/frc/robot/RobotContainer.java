@@ -6,6 +6,7 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 
+import java.lang.reflect.Field;
 import java.util.Optional;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
@@ -15,12 +16,15 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.subsystems.Intake;
@@ -34,6 +38,8 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathCommand;
 import frc.robot.subsystems.Turret;
 import frc.robot.util.dashboard.TurretUtil;
+import frc.robot.util.dashboard.TurretUtil.TargetType;
+import frc.robot.Commands.ShootFuelCommand;
 
 public class RobotContainer {
     
@@ -52,7 +58,7 @@ public class RobotContainer {
     
     /* Setting up bindings for neces]\[
      sary control of the swerve drive platform */
-
+    private static final Pose2d kStartingPose = new Pose2d(8.774, 4.026, Rotation2d.fromDegrees(0));
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
             .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
@@ -70,7 +76,6 @@ public class RobotContainer {
     public RobotContainer() {
 
         autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()`
-        
         configureBindings();
         SmartDashboard.putData("Auto Mode", autoChooser);
     }
@@ -100,23 +105,27 @@ public class RobotContainer {
         //     point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         // ));
         
-
-        joystick.rightBumper()
-        .whileTrue(shooter.intakeCommand(1));
+        turret.autoAimCommand(() -> drivetrain.getState().Pose, TargetType.HUB);
 
         joystick.leftBumper()
-        .whileTrue(shooter.intakeCommand(-1));
+        .whileTrue(new ShootFuelCommand(shooter, drivetrain));
 
-        joystick.pov(180)
-        .whileTrue(climber.downCommand(1));
-        joystick.pov(0)
-        .whileTrue(climber.upCommand(1));
+        // joystick.pov(180)
+        // .whileTrue(climber.downCommand(1));
+        // joystick.pov(0)
+        // .whileTrue(climber.upCommand(1));
 
         joystick.pov(90)
         .whileTrue(spindexer.clockwiseCommand(1));
         joystick.pov(270)
         .whileTrue(spindexer.counterClockwiseCommand(1));
 
+        joystick.y().onTrue(
+            Commands.runOnce(() -> {
+                drivetrain.resetPose(kStartingPose);
+                drivetrain.seedFieldCentric();
+            }, drivetrain)
+        );
 
         // // Run SysId routines when holding back/start and X/Y.
         // // Note that each routine should be run exactly once in a single log.

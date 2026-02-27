@@ -9,7 +9,7 @@ import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class Spindexer extends SubsystemBase{
-    private final SparkMax motor = new SparkMax(40, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushed);
+    private final SparkMax motor = new SparkMax(40, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushless);
 
 
 

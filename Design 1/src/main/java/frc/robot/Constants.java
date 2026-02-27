@@ -6,6 +6,7 @@ import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
@@ -30,7 +31,7 @@ public class Constants {
 
     public static class Turret {
 
-        public static final int kTurretCanID = 42; // CAN ID (dimensionless) - Changed to 13 since shooter uses 14-15
+        public static final int kTurretCanID = 44; // CAN ID (dimensionless)
 
         public static final double kTurretOffsetX  = Units.inchesToMeters(6.715); // X offset (forward +X, backward -X) from robot center to turret (meters) 
         public static final double kTurretOffsetY = Units.inchesToMeters(5.282); // Y offset (left +Y, right -Y) from robot center to turret (meters)
@@ -62,4 +63,27 @@ public class Constants {
         public static final boolean kEnableSupplyLimit = false; // Supply current limit enabled (boolean)
         public static final double kSupplyCurrentLimit = 40; // Supply current limit (amperes)
     }
+
+    public static final class ShooterConstants {
+        // Hub field coordinate — confirm from AprilTagFieldLayout 2026 JSON
+        public static final Translation2d kHubPosition = new Translation2d(8.774, 4.105);
+    
+        // Physics model — ALL THREE must be measured on your physical robot
+        public static final double kLaunchAngleRad      = Math.toRadians(42.0);
+        public static final double kHeightDeltaMeters   = 0.5;    // MEASURE: launcher exit to hub opening (m)
+        public static final double kWheelDiameterMeters = 0.1016; // MEASURE: roller contact diameter (m)
+        public static final double kSlipFactor          = 0.90;   // TUNE: 0.85–0.95 typical, 1.0 = no slip
+        public static final double kG                   = 9.81;
+    
+        // PID / feedforward — tune on robot
+        public static final double kP = 0.15;
+        public static final double kI = 0.0;
+        public static final double kD = 0.0;
+        public static final double kV = 0.12;
+    
+        public static final double kMaxSpeedRPS       = 100.0;
+        public static final double kMinSpeedRPS       = 15.0;
+        public static final double kSpeedToleranceRPS = 2.0;
+    }
+
 }
