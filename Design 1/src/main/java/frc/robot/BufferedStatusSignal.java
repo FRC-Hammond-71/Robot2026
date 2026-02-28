@@ -71,4 +71,23 @@ public class BufferedStatusSignal<T>
 
         return valuesAt[index];
     }
+
+    public double getValueAt(double timeSeconds, TimestampSource source)
+    {
+        if (source != requiredTimestampSource)
+        {
+            throw new IllegalArgumentException("source must be " + requiredTimestampSource + ", but was " + source);
+        }
+
+        long targetTimeMs = (long)(timeSeconds * 1000.0);
+        long elapsedMs = targetTimeMs - firstTimestampMs;
+        int index = (int)(elapsedMs / measurementPeriodMs) % valuesAt.length;
+
+        if (index < 0)
+        {
+            index += valuesAt.length;
+        }
+
+        return valuesAt[index];
+    }
 }

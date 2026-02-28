@@ -6,6 +6,7 @@ import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
@@ -194,6 +195,13 @@ public class Turret extends SubsystemBase {
   }
 
   /**
+   * Get the raw position StatusSignal (in Rotations) for buffering.
+   */
+  public StatusSignal<Angle> getPositionSignal() {
+    return positionSignal;
+  }
+
+  /**
    * Get the current position in Rotations.
    * @return Position in Rotations
    */
@@ -287,7 +295,7 @@ public class Turret extends SubsystemBase {
     double angleRadians = Units.degreesToRadians(angleDegrees);
     double positionRotations = angleRadians / (2.0 * Math.PI);
 
-    double ffVolts = feedforward.calculate(getVelocity(), acceleration);
+    // double ffVolts = feedforward.calculate(getVelocity(), acceleration);
     //motor.setControl(positionRequest.withPosition(positionRotations).withFeedForward(ffVolts));
     motor.setControl(positionRequest.withPosition(positionRotations));
   }
@@ -393,11 +401,15 @@ public class Turret extends SubsystemBase {
    * @param target The target to aim at (HUB, LEFT_PASS, or RIGHT_PASS)
    * @return A command that continuously aims the turret at the target
    */
-  public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, TurretUtil.TargetType target) {
+  public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, Supplier<ChassisSpeeds> fieldRelativeSpeedsSupplier, TurretUtil.TargetType target) {
     return run(() -> {
       Pose2d robotPose = robotPoseSupplier.get();
-      TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(robotPose, target);
-      
+      ChassisSpeeds speeds = fieldRelativeSpeedsSupplier.get();
+      double vx = speeds.vxMetersPerSecond;
+      double vy = speeds.vyMetersPerSecond;
+
+      TurretUtil.ShotSolution solution = TurretUtil.computeLeadShotSolution(robotPose, vx, vy, target);
+
       if (solution.isValid) {
         setAngle(solution.turretAngleDegrees);
       }

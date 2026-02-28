@@ -41,13 +41,16 @@ import frc.robot.Limelight.Limelight;
 import frc.robot.util.LimelightOnTurretUtils;
 import edu.wpi.first.math.geometry.Rotation3d;
 import frc.robot.Limelight.LimelightHelpers;
+import frc.robot.BufferedStatusSignal;
+import com.ctre.phoenix6.Timestamp.TimestampSource;
+import com.ctre.phoenix6.StatusSignal;
+import edu.wpi.first.units.measure.Angle;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 
 // #region WARNING
 
 // Without explicit permission, Do NOT edit this code. Any changed made to this code will be reverted. - Lune
 // We don't even know how this code works. do NOT. EDIT. IT.
-
 
 public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Subsystem {
     private static final double kSimLoopPeriod = 0.004; // 4 ms
@@ -58,393 +61,451 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private static final Rotation2d kBlueAlliancePerspectiveRotation = Rotation2d.kZero;
     /* Red alliance sees forward as 180 degrees (toward blue alliance wall) */
     private static final Rotation2d kRedAlliancePerspectiveRotation = Rotation2d.k180deg;
-        private static final PathConstraints PathConstraints = null;
-        /* Keep track if we've ever applied the operator perspective before or not */
-        private boolean m_hasAppliedOperatorPerspective = false;
-        
-        /** Swerve request to apply during robot-centric path following */
-        private final SwerveRequest.ApplyRobotSpeeds m_pathApplyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
-           private StructPublisher<Pose2d> posePublisher = NetworkTableInstance.getDefault()
-           .getStructTopic("rPose", Pose2d.struct).publish();
+    private static final PathConstraints PathConstraints = null;
+    /* Keep track if we've ever applied the operator perspective before or not */
+    private boolean m_hasAppliedOperatorPerspective = false;
 
-        private StructPublisher<Pose2d> llRawPosePublisher = NetworkTableInstance.getDefault()
+    /** Swerve request to apply during robot-centric path following */
+    private final SwerveRequest.ApplyRobotSpeeds m_pathApplyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
+    private StructPublisher<Pose2d> posePublisher = NetworkTableInstance.getDefault()
+            .getStructTopic("rPose", Pose2d.struct).publish();
+
+    private StructPublisher<Pose2d> llRawPosePublisher = NetworkTableInstance.getDefault()
             .getStructTopic("ll_RawPose", Pose2d.struct).publish();
-            
-        private StructPublisher<Pose2d> llMegaTagPosePublisher = NetworkTableInstance.getDefault()
+
+    private StructPublisher<Pose2d> llMegaTagPosePublisher = NetworkTableInstance.getDefault()
             .getStructTopic("ll_MegaTagPose", Pose2d.struct).publish();
 
-        private StructPublisher<Pose2d> llStablePosePublisher = NetworkTableInstance.getDefault()
-            .getStructTopic("ll_StablePose", Pose2d.struct).publish();
-        public Odometry odometry;
-        /* Swerve requests to apply during SysId characterization */
-        private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
-        private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
-        private final SwerveRequest.SysIdSwerveRotation m_rotationCharacterization = new SwerveRequest.SysIdSwerveRotation();
-    
+    // private StructPublisher<Pose2d> llStablePosePublisher =
+    // NetworkTableInstance.getDefault()
+    // .getStructTopic("ll_StablePose", Pose2d.struct).publish();
+
+    // public Odometry odometry;
+
+    private BufferedStatusSignal<Angle> m_bufferedTurretAngle = null;
+    private BufferedStatusSignal<Angle> m_bufferedGyroHeading = null;
+
+    /* Swerve requests to apply during SysId characterization */
+    private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
+    private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
+    private final SwerveRequest.SysIdSwerveRotation m_rotationCharacterization = new SwerveRequest.SysIdSwerveRotation();
+
         /* SysId routine for characterizing translation. This is used to find PID gains for the drive motors. */
-        private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
+    private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
             new SysIdRoutine.Config(
                 null,        // Use default ramp rate (1 V/s)
-                Volts.of(4), // Reduce dynamic step voltage to 4 V to prevent brownout
+                    Volts.of(4), // Reduce dynamic step voltage to 4 V to prevent brownout
                 null,        // Use default timeout (10 s)
-                // Log state with SignalLogger class
+                    // Log state with SignalLogger class
                 state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())
             ),
             new SysIdRoutine.Mechanism(
-                output -> setControl(m_translationCharacterization.withVolts(output)),
-                null,
-                this
-            )
-        );
-    
-        public void updateOdometry() 
-        {
-            // Pose2d estimatedPose = this.getState().Pose;
-            Rotation2d gyroHeading = this.getState().RawHeading;
-            ChassisSpeeds speeds = this.getState().Speeds;
-            Limelight limelight = Limelight.useDevice("limelight");
-    
-            boolean useVision = SmartDashboard.getBoolean("Drivetrain/useVision", true);
-    
-            Optional<Pose2d> rawResult = limelight.getRawEstimatedPose();
-            Optional<Pose2d> megaTagResult = limelight.getMegaTag2EstimatedPose(gyroHeading, speeds);
-            // Optional<Pose2d> stablePose = limelight.getStableEstimatedPose(estimatedPose, gyroHeading, speeds);
+                    output -> setControl(m_translationCharacterization.withVolts(output)),
+                    null,
+                    this));
 
-            // Limelight must have 0,0,0 and rotation of 0,0,0 configured relative to the robot center.
+    /*
+     * SysId routine for characterizing steer. This is used to find PID gains for
+     * the steer motors.
+     */
+    private final SysIdRoutine m_sysIdRoutineSteer = new SysIdRoutine(
+            new SysIdRoutine.Config(
+                    null, // Use default ramp rate (1 V/s)
+                    Volts.of(7), // Use dynamic voltage of 7 V
+                    null, // Use default timeout (10 s)
+                    // Log state with SignalLogger class
+                    state -> SignalLogger.writeString("SysIdSteer_State", state.toString())),
+            new SysIdRoutine.Mechanism(
+                    volts -> setControl(m_steerCharacterization.withVolts(volts)),
+                    null,
+                    this));
 
-            if (rawResult.isPresent())
-            {
-            	this.llRawPosePublisher.set(rawResult.get());
-            }
-            if (megaTagResult.isPresent())
-            {
-            	this.llMegaTagPosePublisher.set(megaTagResult.get());
+    /*
+     * SysId routine for characterizing rotation.
+     * This is used to find PID gains for the FieldCentricFacingAngle
+     * HeadingController.
+     * See the documentation of SwerveRequest.SysIdSwerveRotation for info on
+     * importing the log to SysId.
+     */
+    private final SysIdRoutine m_sysIdRoutineRotation = new SysIdRoutine(
+            new SysIdRoutine.Config(
+                    /* This is in radians per second², but SysId only supports "volts per second" */
+                    Volts.of(Math.PI / 6).per(Second),
+                    /* This is in radians per second, but SysId only supports "volts" */
+                    Volts.of(Math.PI),
+                    null, // Use default timeout (10 s)
+                    // Log state with SignalLogger class
+                    state -> SignalLogger.writeString("SysIdRotation_State", state.toString())),
+            new SysIdRoutine.Mechanism(
+                    output -> {
+                        /* output is actually radians per second, but SysId only supports "volts" */
+                        setControl(m_rotationCharacterization.withRotationalRate(output.in(Volts)));
+                        /* also log the requested output for SysId */
+                        SignalLogger.writeDouble("Rotational_Rate", output.in(Volts));
+                    },
+                    null,
+                    this));
 
+    /* The SysId routine to test */
+    private SysIdRoutine m_sysIdRoutineToApply = m_sysIdRoutineTranslation;
+
+    /**
+     * Constructs a CTRE SwerveDrivetrain using the specified constants.
+     * <p>
+     * This constructs the underlying hardware devices, so users should not
+     * construct
+     * the devices themselves. If they need the devices, they can access them
+     * through
+     * getters in the classes.
+     *
+     * @param drivetrainConstants Drivetrain-wide constants for the swerve drive
+     * @param modules             Constants for each specific module
+     */
+    public CommandSwerveDrivetrain(
+        StatusSignal<Angle> turretPositionSignal,
+        SwerveDrivetrainConstants drivetrainConstants,
+        SwerveModuleConstants<?, ?, ?>... modules) {
+
+        super(drivetrainConstants, modules);
+
+        m_bufferedTurretAngle = new BufferedStatusSignal<Angle>(turretPositionSignal, TimestampSource.System, 20, 2000);
+        m_bufferedGyroHeading = new BufferedStatusSignal<Angle>(getPigeon2().getYaw(), TimestampSource.System, 20, 2000);
+        
+        if (Utils.isSimulation()) {
+            startSimThread();
+        }
+        configureAutoBuilder();
+    }
+
+    public CommandSwerveDrivetrain(
+        SwerveDrivetrainConstants drivetrainConstants,
+        SwerveModuleConstants<?, ?, ?>... modules) {
+
+        super(drivetrainConstants, modules);
+        if (Utils.isSimulation()) {
+            startSimThread();
+        }
+        configureAutoBuilder();
+    }
+
+    public void updateOdometry() {
+        // Pose2d estimatedPose = this.getState().Pose;
+        Rotation2d gyroHeading = this.getState().RawHeading;
+        ChassisSpeeds speeds = this.getState().Speeds;
+        Limelight limelight = Limelight.useDevice("limelight");
+
+        boolean useVision = SmartDashboard.getBoolean("Drivetrain/useVision", true);
+
+        Optional<Pose2d> rawResult = limelight.getRawEstimatedPose();
+        Optional<Pose2d> megaTagResult = limelight.getMegaTag2EstimatedPose(gyroHeading, speeds);
+        // Optional<Pose2d> stablePose = limelight.getStableEstimatedPose(estimatedPose,
+        // gyroHeading, speeds);
+
+        // Limelight must have 0,0,0 and rotation of 0,0,0 configured relative to the
+        // robot center.
+
+        if (rawResult.isPresent()) {
+            this.llRawPosePublisher.set(rawResult.get());
+        }
+        if (megaTagResult.isPresent()) {
+            this.llMegaTagPosePublisher.set(megaTagResult.get());
+
+            if (m_bufferedTurretAngle != null && m_bufferedGyroHeading != null) {
                 try {
+                    double visionTimestampSeconds = Timer.getFPGATimestamp() - limelight.getLatencyInSeconds();
 
-                    // Convert the camera-field MegaTag pose into a robot-field pose using transforms.
-                    Rotation3d turretRotation3d = LimelightHelpers.getCameraPose3d_RobotSpace("limelight").getRotation();
-                    Pose2d cameraFieldPose = megaTagResult.get();
-                    Pose2d convertedRobotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(cameraFieldPose, turretRotation3d, gyroHeading);
+                    double turretRotations = m_bufferedTurretAngle.getValueAt(visionTimestampSeconds,
+                            TimestampSource.System);
+                    Rotation3d turretRotation3d = new Rotation3d(0.0, 0.0, turretRotations * 2.0 * Math.PI);
+
+                    Rotation2d gyroHeadingAtVision = Rotation2d.fromDegrees(
+                            m_bufferedGyroHeading.getValueAt(visionTimestampSeconds, TimestampSource.System));
+
+                    Pose2d convertedRobotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(megaTagResult.get(),
+                            turretRotation3d, gyroHeadingAtVision);
 
                     if (useVision) {
-
-                        addVisionMeasurement(convertedRobotPose, Timer.getFPGATimestamp() - limelight.getLatencyInSeconds());
-                    
+                        addVisionMeasurement(convertedRobotPose, visionTimestampSeconds);
                     }
 
                     this.llMegaTagPosePublisher.set(convertedRobotPose);
-
-                } 
-                catch (Exception ex) 
-                {
-                    DriverStation.reportWarning("Failed to convert MegaTag Camera Pose to Robot Pose: " + ex.getMessage(), ex.getStackTrace());
+                } catch (Exception ex) {
+                    DriverStation.reportWarning(
+                            "Failed to convert MegaTag Camera Pose to Robot Pose: " + ex.getMessage(),
+                            ex.getStackTrace());
                 }
             }
-            // if (stablePose.isPresent())
-            // {
-            //     Pose2d newStablePose = new Pose2d(stablePose.get().getTranslation(), estimatedPose.getRotation());
-            //     // Only contribute the stablePose to Pose Estimation!
-            //     if (useVision)
-            //     {
-            //         addVisionMeasurement(newStablePose, Timer.getFPGATimestamp() - limelight.getLatencyInSeconds());
-            //     }
-            //     this.llStablePosePublisher.set(newStablePose);
-            // }
-            this.posePublisher.set(this.getState().Pose);
         }
-        public void configureAutoBuilder() {
-            try {
-                var config = RobotConfig.fromGUISettings();
+        // if (stablePose.isPresent())
+        // {
+        // Pose2d newStablePose = new Pose2d(stablePose.get().getTranslation(),
+        // estimatedPose.getRotation());
+        // // Only contribute the stablePose to Pose Estimation!
+        // if (useVision)
+        // {
+        // addVisionMeasurement(newStablePose, Timer.getFPGATimestamp() -
+        // limelight.getLatencyInSeconds());
+        // }
+        // this.llStablePosePublisher.set(newStablePose);
+        // }
+        this.posePublisher.set(this.getState().Pose);
+    }
 
-                AutoBuilder.configure(
-                    () -> getState().Pose,   // Supplier of current robot pose
-                    this::resetPose,         // Consumer for seeding pose against auto
+    public void configureAutoBuilder() {
+        try {
+            var config = RobotConfig.fromGUISettings();
+
+            AutoBuilder.configure(
+                    () -> getState().Pose, // Supplier of current robot pose
+                    this::resetPose, // Consumer for seeding pose against auto
                     () -> getState().Speeds, // Supplier of current robot speeds
                     // Consumer of ChassisSpeeds and feedforwards to drive the robot
                     (speeds, feedforwards) -> setControl(
-                        m_pathApplyRobotSpeeds.withSpeeds(ChassisSpeeds.discretize(speeds, 0.020))
-                            .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
-                            .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())
-                    ),
+                            m_pathApplyRobotSpeeds.withSpeeds(ChassisSpeeds.discretize(speeds, 0.020))
+                                    .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
+                                    .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())),
                     new PPHolonomicDriveController(
-                        // PID constants for translation
-                        new PIDConstants(10, 0, 0),
-                        // PID constants for rotation
-                        new PIDConstants(7, 0, 0)
-                    ),
+                            // PID constants for translation
+                            new PIDConstants(10, 0, 0),
+                            // PID constants for rotation
+                            new PIDConstants(7, 0, 0)),
                     config,
-                    // Assume the path needs to be flipped for Red vs Blue, this is normally the case
+                    // Assume the path needs to be flipped for Red vs Blue, this is normally the
+                    // case
                     () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
                     this // Subsystem for requirements
-                );
-            } catch (Exception ex) {
-                DriverStation.reportError("Failed to load PathPlanner config and configure AutoBuilder", ex.getStackTrace());
-            }
-        };
-    
-
-    
-    
-    
-        /* SysId routine for characterizing steer. This is used to find PID gains for the steer motors. */
-        private final SysIdRoutine m_sysIdRoutineSteer = new SysIdRoutine(
-            new SysIdRoutine.Config(
-                null,        // Use default ramp rate (1 V/s)
-                Volts.of(7), // Use dynamic voltage of 7 V
-                null,        // Use default timeout (10 s)
-                // Log state with SignalLogger class
-                state -> SignalLogger.writeString("SysIdSteer_State", state.toString())
-            ),
-            new SysIdRoutine.Mechanism(
-                volts -> setControl(m_steerCharacterization.withVolts(volts)),
-                null,
-                this
-            )
-        );
-    
-        /*
-         * SysId routine for characterizing rotation.
-         * This is used to find PID gains for the FieldCentricFacingAngle HeadingController.
-         * See the documentation of SwerveRequest.SysIdSwerveRotation for info on importing the log to SysId.
-         */
-        private final SysIdRoutine m_sysIdRoutineRotation = new SysIdRoutine(
-            new SysIdRoutine.Config(
-                /* This is in radians per second², but SysId only supports "volts per second" */
-                Volts.of(Math.PI / 6).per(Second),
-                /* This is in radians per second, but SysId only supports "volts" */
-                Volts.of(Math.PI),
-                null, // Use default timeout (10 s)
-                // Log state with SignalLogger class
-                state -> SignalLogger.writeString("SysIdRotation_State", state.toString())
-            ),
-            new SysIdRoutine.Mechanism(
-                output -> {
-                    /* output is actually radians per second, but SysId only supports "volts" */
-                    setControl(m_rotationCharacterization.withRotationalRate(output.in(Volts)));
-                    /* also log the requested output for SysId */
-                    SignalLogger.writeDouble("Rotational_Rate", output.in(Volts));
-                },
-                null,
-                this
-            )
-        );
-    
-        /* The SysId routine to test */
-        private SysIdRoutine m_sysIdRoutineToApply = m_sysIdRoutineTranslation;
-    
-        /**
-         * Constructs a CTRE SwerveDrivetrain using the specified constants.
-         * <p>
-         * This constructs the underlying hardware devices, so users should not construct
-         * the devices themselves. If they need the devices, they can access them through
-         * getters in the classes.
-         *
-         * @param drivetrainConstants   Drivetrain-wide constants for the swerve drive
-         * @param modules               Constants for each specific module
-         */
-        public CommandSwerveDrivetrain(
-            SwerveDrivetrainConstants drivetrainConstants,
-            SwerveModuleConstants<?, ?, ?>... modules
-        ) {
-            super(drivetrainConstants, modules);
-            if (Utils.isSimulation()) {
-                startSimThread();
-            }
-            configureAutoBuilder();
+            );
+        } catch (Exception ex) {
+            DriverStation.reportError("Failed to load PathPlanner config and configure AutoBuilder",
+                    ex.getStackTrace());
         }
-    
-    
-    public boolean resetPoseWithLimelight() {
-		Optional<Pose2d> es = Limelight.useDevice("limelight").getRawEstimatedPose();
+    };
 
-		if (es.isPresent())
-		{
-			this.resetPose(es.get());
-			return true;
-		}
-		return false;
-	}
-        /**
-         * Constructs a CTRE SwerveDrivetrain using the specified constants.
-         * <p>
-         * This constructs the underlying hardware devices, so users should not construct
-         * the devices themselves. If they need the devices, they can access them through
-         * getters in the classes.
-         *
-         * @param drivetrainConstants     Drivetrain-wide constants for the swerve drive
-         * @param odometryUpdateFrequency The frequency to run the odometry loop. If
-         *                                unspecified or set to 0 Hz, this is 250 Hz on
-         *                                CAN FD, and 100 Hz on CAN 2.0.
-         * @param modules                 Constants for each specific module
-         */
-        public CommandSwerveDrivetrain(
+    /**
+     * Returns the robot's current velocity in field-relative coordinates (x forward, y left).
+     */
+    public ChassisSpeeds getFieldRelativeSpeeds() {
+        ChassisSpeeds robotSpeeds = getState().Speeds;
+        Rotation2d heading = Rotation2d.fromDegrees(getPigeon2().getYaw().getValueAsDouble());
+        double cos = heading.getCos();
+        double sin = heading.getSin();
+        double vxField = robotSpeeds.vxMetersPerSecond * cos - robotSpeeds.vyMetersPerSecond * sin;
+        double vyField = robotSpeeds.vxMetersPerSecond * sin + robotSpeeds.vyMetersPerSecond * cos;
+        return new ChassisSpeeds(vxField, vyField, robotSpeeds.omegaRadiansPerSecond);
+    }
+
+    public boolean resetPoseWithLimelight() {
+        Optional<Pose2d> es = Limelight.useDevice("limelight").getRawEstimatedPose();
+
+        if (es.isPresent()) {
+            this.resetPose(es.get());
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Constructs a CTRE SwerveDrivetrain using the specified constants.
+     * <p>
+     * This constructs the underlying hardware devices, so users should not
+     * construct
+     * the devices themselves. If they need the devices, they can access them
+     * through
+     * getters in the classes.
+     *
+     * @param drivetrainConstants     Drivetrain-wide constants for the swerve drive
+     * @param odometryUpdateFrequency The frequency to run the odometry loop. If
+     *                                unspecified or set to 0 Hz, this is 250 Hz on
+     *                                CAN FD, and 100 Hz on CAN 2.0.
+     * @param modules                 Constants for each specific module
+     */
+    public CommandSwerveDrivetrain(
             SwerveDrivetrainConstants drivetrainConstants,
             double odometryUpdateFrequency,
-            SwerveModuleConstants<?, ?, ?>... modules
-        ) {
-            super(drivetrainConstants, odometryUpdateFrequency, modules);
-            if (Utils.isSimulation()) {
-                startSimThread();
-            }
+            SwerveModuleConstants<?, ?, ?>... modules) {
+        super(drivetrainConstants, odometryUpdateFrequency, modules);
+        if (Utils.isSimulation()) {
+            startSimThread();
         }
-    
-        /**
-         * Constructs a CTRE SwerveDrivetrain using the specified constants.
-         * <p>
-         * This constructs the underlying hardware devices, so users should not construct
-         * the devices themselves. If they need the devices, they can access them through
-         * getters in the classes.
-         *
-         * @param drivetrainConstants       Drivetrain-wide constants for the swerve drive
-         * @param odometryUpdateFrequency   The frequency to run the odometry loop. If
-         *                                  unspecified or set to 0 Hz, this is 250 Hz on
-         *                                  CAN FD, and 100 Hz on CAN 2.0.
-         * @param odometryStandardDeviation The standard deviation for odometry calculation
-         *                                  in the form [x, y, theta]ᵀ, with units in meters
-         *                                  and radians
-         * @param visionStandardDeviation   The standard deviation for vision calculation
-         *                                  in the form [x, y, theta]ᵀ, with units in meters
-         *                                  and radians
-         * @param modules                   Constants for each specific module
-         */
-        public CommandSwerveDrivetrain(
+    }
+
+    /**
+     * Constructs a CTRE SwerveDrivetrain using the specified constants.
+     * <p>
+     * This constructs the underlying hardware devices, so users should not
+     * construct
+     * the devices themselves. If they need the devices, they can access them
+     * through
+     * getters in the classes.
+     *
+     * @param drivetrainConstants       Drivetrain-wide constants for the swerve
+     *                                  drive
+     * @param odometryUpdateFrequency   The frequency to run the odometry loop. If
+     *                                  unspecified or set to 0 Hz, this is 250 Hz
+     *                                  on
+     *                                  CAN FD, and 100 Hz on CAN 2.0.
+     * @param odometryStandardDeviation The standard deviation for odometry
+     *                                  calculation
+     *                                  in the form [x, y, theta]ᵀ, with units in
+     *                                  meters
+     *                                  and radians
+     * @param visionStandardDeviation   The standard deviation for vision
+     *                                  calculation
+     *                                  in the form [x, y, theta]ᵀ, with units in
+     *                                  meters
+     *                                  and radians
+     * @param modules                   Constants for each specific module
+     */
+    public CommandSwerveDrivetrain(
             SwerveDrivetrainConstants drivetrainConstants,
             double odometryUpdateFrequency,
             Matrix<N3, N1> odometryStandardDeviation,
             Matrix<N3, N1> visionStandardDeviation,
-            SwerveModuleConstants<?, ?, ?>... modules
-        ) {
-            super(drivetrainConstants, odometryUpdateFrequency, odometryStandardDeviation, visionStandardDeviation, modules);
-            if (Utils.isSimulation()) {
-                startSimThread();
-            }
+            SwerveModuleConstants<?, ?, ?>... modules) {
+        super(drivetrainConstants, odometryUpdateFrequency, odometryStandardDeviation, visionStandardDeviation,
+                modules);
+        if (Utils.isSimulation()) {
+            startSimThread();
         }
-    
-    
-    
-        /**
-         * Returns a command that applies the specified control request to this swerve drivetrain.
-         *
-         * @param request Function returning the request to apply
-         * @return Command to run
-         */
-        public Command applyRequest(Supplier<SwerveRequest> request) {
-            return run(() -> this.setControl(request.get()));
-        }
-    
-        /**
-         * Runs the SysId Quasistatic test in the given direction for the routine
-         * specified by {@link #m_sysIdRoutineToApply}.
-         *
-         * @param direction Direction of the SysId Quasistatic test
-         * @return Command to run
-         */
-        public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
-            return m_sysIdRoutineToApply.quasistatic(direction);
-        }
-    
-        /**
-         * Runs the SysId Dynamic test in the given direction for the routine
-         * specified by {@link #m_sysIdRoutineToApply}.
-         *
-         * @param direction Direction of the SysId Dynamic test
-         * @return Command to run
-         */
-        public Command sysIdDynamic(SysIdRoutine.Direction direction) {
-            return m_sysIdRoutineToApply.dynamic(direction);
-        }
+    }
 
+    /**
+     * Returns a command that applies the specified control request to this swerve
+     * drivetrain.
+     *
+     * @param request Function returning the request to apply
+     * @return Command to run
+     */
+    public Command applyRequest(Supplier<SwerveRequest> request) {
+        return run(() -> this.setControl(request.get()));
+    }
 
-    
-        @Override
-        public void periodic() {
-            /*
-             * Periodically try to apply the operator perspective.
-             * If we haven't applied the operator perspective before, then we should apply it regardless of DS state.
-             * This allows us to correct the perspective in case the robot code restarts mid-match.
-             * Otherwise, only check and apply the operator perspective if the DS is disabled.
-             * This ensures driving behavior doesn't change until an explicit disable event occurs during testing.
-             */
-    
-            LimelightHelpers.getBotPose2d_wpiBlue("limelight");
+    /**
+     * Runs the SysId Quasistatic test in the given direction for the routine
+     * specified by {@link #m_sysIdRoutineToApply}.
+     *
+     * @param direction Direction of the SysId Quasistatic test
+     * @return Command to run
+     */
+    public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
+        return m_sysIdRoutineToApply.quasistatic(direction);
+    }
 
-            if (!m_hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
-                DriverStation.getAlliance().ifPresent(allianceColor -> {
-                    setOperatorPerspectiveForward(
-                        allianceColor == Alliance.Red
-                            ? kRedAlliancePerspectiveRotation
-                            : kBlueAlliancePerspectiveRotation
-                    );
-                    m_hasAppliedOperatorPerspective = true;
-                });
-            }
+    /**
+     * Runs the SysId Dynamic test in the given direction for the routine
+     * specified by {@link #m_sysIdRoutineToApply}.
+     *
+     * @param direction Direction of the SysId Dynamic test
+     * @return Command to run
+     */
+    public Command sysIdDynamic(SysIdRoutine.Direction direction) {
+        return m_sysIdRoutineToApply.dynamic(direction);
+    }
 
-            updateOdometry();
-
-        }
-    
-        private void startSimThread() {
-            m_lastSimTime = Utils.getCurrentTimeSeconds();
-    
-            /* Run simulation at a faster rate so PID gains behave more reasonably */
-            m_simNotifier = new Notifier(() -> {
-                final double currentTime = Utils.getCurrentTimeSeconds();
-                double deltaTime = currentTime - m_lastSimTime;
-                m_lastSimTime = currentTime;
-    
-                /* use the measured time delta, get battery voltage from WPILib */
-                updateSimState(deltaTime, RobotController.getBatteryVoltage());
-            });
-            m_simNotifier.startPeriodic(kSimLoopPeriod);}
-        
-
+    @Override
+    public void periodic() {
         /*
-         * Adds a vision measurement to the Kalman Filter. This will correct the odometry pose estimate
-         * while still accounting for measurement noise.
-         *
-         * @param visionRobotPoseMeters The pose of the robot as measured by the vision camera.
-         * @param timestampSeconds The timestamp of the vision measurement in seconds.
+         * Periodically try to apply the operator perspective.
+         * If we haven't applied the operator perspective before, then we should apply
+         * it regardless of DS state.
+         * This allows us to correct the perspective in case the robot code restarts
+         * mid-match.
+         * Otherwise, only check and apply the operator perspective if the DS is
+         * disabled.
+         * This ensures driving behavior doesn't change until an explicit disable event
+         * occurs during testing.
          */
-        @Override
-        public void addVisionMeasurement(Pose2d visionRobotPoseMeters, double timestampSeconds) {
-            super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds));
+
+        LimelightHelpers.getBotPose2d_wpiBlue("limelight");
+
+        if (m_bufferedTurretAngle != null)
+            m_bufferedTurretAngle.periodic();
+        if (m_bufferedGyroHeading != null)
+            m_bufferedGyroHeading.periodic();
+
+        if (!m_hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
+            DriverStation.getAlliance().ifPresent(allianceColor -> {
+                setOperatorPerspectiveForward(
+                        allianceColor == Alliance.Red
+                                ? kRedAlliancePerspectiveRotation
+                                : kBlueAlliancePerspectiveRotation);
+                m_hasAppliedOperatorPerspective = true;
+            });
         }
-    
-        /**
-         * Adds a vision measurement to the Kalman Filter. This will correct the odometry pose estimate
-         * while still accounting for measurement noise.
-         * <p>
-         * Note that the vision measurement standard deviations passed into this method
-         * will continue to apply to future measurements until a subsequent call to
-         * {@link #setVisionMeasurementStdDevs(Matrix)} or this method.
-         *
-         * @param visionRobotPoseMeters The pose of the robot as measured by the vision camera.
-         * @param timestampSeconds The timestamp of the vision measurement in seconds.
-         * @param visionMeasurementStdDevs Standard deviations of the vision pose measurement
-         *     in the form [x, y, theta]ᵀ, with units in meters and radians.
-         */
-        @Override
-        public void addVisionMeasurement(
+
+        updateOdometry();
+
+    }
+
+    private void startSimThread() {
+        m_lastSimTime = Utils.getCurrentTimeSeconds();
+
+        /* Run simulation at a faster rate so PID gains behave more reasonably */
+        m_simNotifier = new Notifier(() -> {
+            final double currentTime = Utils.getCurrentTimeSeconds();
+            double deltaTime = currentTime - m_lastSimTime;
+            m_lastSimTime = currentTime;
+
+            /* use the measured time delta, get battery voltage from WPILib */
+            updateSimState(deltaTime, RobotController.getBatteryVoltage());
+        });
+        m_simNotifier.startPeriodic(kSimLoopPeriod);
+    }
+
+    /*
+     * Adds a vision measurement to the Kalman Filter. This will correct the
+     * odometry pose estimate
+     * while still accounting for measurement noise.
+     *
+     * @param visionRobotPoseMeters The pose of the robot as measured by the vision
+     * camera.
+     * 
+     * @param timestampSeconds The timestamp of the vision measurement in seconds.
+     */
+    @Override
+    public void addVisionMeasurement(Pose2d visionRobotPoseMeters, double timestampSeconds) {
+        super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds));
+    }
+
+    /**
+     * Adds a vision measurement to the Kalman Filter. This will correct the
+     * odometry pose estimate
+     * while still accounting for measurement noise.
+     * <p>
+     * Note that the vision measurement standard deviations passed into this method
+     * will continue to apply to future measurements until a subsequent call to
+     * {@link #setVisionMeasurementStdDevs(Matrix)} or this method.
+     *
+     * @param visionRobotPoseMeters    The pose of the robot as measured by the
+     *                                 vision camera.
+     * @param timestampSeconds         The timestamp of the vision measurement in
+     *                                 seconds.
+     * @param visionMeasurementStdDevs Standard deviations of the vision pose
+     *                                 measurement
+     *                                 in the form [x, y, theta]ᵀ, with units in
+     *                                 meters and radians.
+     */
+    @Override
+    public void addVisionMeasurement(
             Pose2d visionRobotPoseMeters,
             double timestampSeconds,
-            Matrix<N3, N1> visionMeasurementStdDevs
-        ) {
-            super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds), visionMeasurementStdDevs);
-        }
-    
-        /**
-         * Return the pose at a given timestamp, if the buffer is not empty.
-         *
-         * @param timestampSeconds The timestamp of the pose in seconds.
-         * @return The pose at the given timestamp (or Optional.empty() if the buffer is empty).
-         */
-        @Override
-        public Optional<Pose2d> samplePoseAt(double timestampSeconds) {
-            return super.samplePoseAt(Utils.fpgaToCurrentTime(timestampSeconds));
-        }
-    
-    
- // Ultimately a failed implementation of auto :(
- // Lune needs to INSPECT IMMEDIATELY before ACTIVATING SWERVE
+            Matrix<N3, N1> visionMeasurementStdDevs) {
+        super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds),
+                visionMeasurementStdDevs);
+    }
+
+    /**
+     * Return the pose at a given timestamp, if the buffer is not empty.
+     *
+     * @param timestampSeconds The timestamp of the pose in seconds.
+     * @return The pose at the given timestamp (or Optional.empty() if the buffer is
+     *         empty).
+     */
+    @Override
+    public Optional<Pose2d> samplePoseAt(double timestampSeconds) {
+        return super.samplePoseAt(Utils.fpgaToCurrentTime(timestampSeconds));
+    }
+
+    // Ultimately a failed implementation of auto :(
+    // Lune needs to INSPECT IMMEDIATELY before ACTIVATING SWERVE
 }

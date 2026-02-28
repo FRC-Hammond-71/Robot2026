@@ -13,6 +13,7 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentric;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 
@@ -65,7 +66,11 @@ public class RobotContainer {
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
     private final Telemetry logger = new Telemetry(MaxSpeed);
     private final CommandXboxController joystick = new CommandXboxController(0);
-    public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+    public final CommandSwerveDrivetrain drivetrain = new CommandSwerveDrivetrain(
+        turret.getPositionSignal(),
+        TunerConstants.DrivetrainConstants,
+        TunerConstants.FrontLeft, TunerConstants.FrontRight, TunerConstants.BackLeft, TunerConstants.BackRight
+    );
     private final SendableChooser<Command> autoChooser;
 
 
@@ -86,11 +91,16 @@ public class RobotContainer {
         // and Y is defined as to the left according to WPILib convention.
         drivetrain.setDefaultCommand(
             // Drivetrain will execute this command periodically
-            drivetrain.applyRequest(() ->
-                drive.withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
+            drivetrain.applyRequest(() -> {
+
+                // TODO: Conditionally, when autoaiming is active use FieldCentricFacingAngle instead. 
+                
+                return new FieldCentric()
+                    .withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
                     .withVelocityY(-joystick.getLeftX() * MaxSpeed) // Drive left with negative X (left)
-                    .withRotationalRate(-joystick.getRightX() * MaxAngularRate) // Drive counterclockwise with negative X (left)
-            )
+                    .withRotationalRate(-joystick.getRightX() * MaxAngularRate); // Drive counterclockwise with negative X (left)
+
+            })
         );
 
         // Idle while the robot is disabled. This ensures the configured
@@ -106,7 +116,7 @@ public class RobotContainer {
         // ));
         
         // TODO: Update with leading shots.
-        turret.autoAimCommand(() -> drivetrain.getState().Pose, TargetType.HUB);
+        turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.HUB);
 
         joystick.leftBumper()
         .whileTrue(new ShootFuelCommand(shooter, drivetrain));
