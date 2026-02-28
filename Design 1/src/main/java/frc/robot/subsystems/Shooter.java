@@ -42,8 +42,9 @@ public class Shooter extends SubsystemBase {
 
     // --- Velocity control ---
     public void setVelocity(double rps) {
-        double clamped = Math.max(ShooterConstants.kMinSpeedRPS,
-                         Math.min(ShooterConstants.kMaxSpeedRPS, rps));
+        
+        double clamped = rps == 0 ? 0 : Math.max(ShooterConstants.kMinSpeedRPS, Math.min(ShooterConstants.kMaxSpeedRPS, rps)); 
+
         m_motorA.setControl(m_velocityRequest.withVelocity(-clamped));
         m_motorB.setControl(m_velocityRequest.withVelocity(clamped)); // software inversion
     }

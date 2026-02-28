@@ -24,6 +24,7 @@ public class ShootFuelCommand extends Command {
         Pose2d currentPose = m_drivetrain.getState().Pose;
         double distance    = m_shooter.calculateDistance(currentPose.getTranslation());
         m_targetRPS        = m_shooter.calculateTargetRPS(distance);
+        // m_shooter.setVelocity(0.8);
         m_shooter.setVelocity(m_targetRPS);
 
         SmartDashboard.putNumber("Shooter/TargetRPS",      m_targetRPS);

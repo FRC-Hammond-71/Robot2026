@@ -40,6 +40,7 @@ import com.pathplanner.lib.commands.FollowPathCommand;
 import frc.robot.subsystems.Turret;
 import frc.robot.util.dashboard.TurretUtil;
 import frc.robot.util.dashboard.TurretUtil.TargetType;
+import frc.robot.Constants.ShooterConstants;
 import frc.robot.Commands.ShootFuelCommand;
 
 public class RobotContainer {
@@ -115,11 +116,17 @@ public class RobotContainer {
         //     point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         // ));
         
-        // TODO: Update with leading shots.
-        turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.HUB);
+        // turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.HUB);
 
-        joystick.leftBumper()
-        .whileTrue(new ShootFuelCommand(shooter, drivetrain));
+        RobotModeTriggers.test().whileTrue(Commands.run(() -> {
+
+            shooter.setVelocity(joystick.getLeftTriggerAxis()  * ShooterConstants.kMaxSpeedRPS);
+
+        }));
+
+        // joystick.leftTrigger()
+        // joystick.leftBumper()
+        // .whileTrue(new ShootFuelCommand(shooter, drivetrain));
 
         // joystick.pov(180)
         // .whileTrue(climber.downCommand(1));
@@ -152,7 +159,8 @@ public class RobotContainer {
         SmartDashboard.putData("Auto Selection", autoChooser);
     }
 
-    // public Command getAutonomousCommand() {
+    // public Command getAutonomousCommand() {p[]p[][]\
+
         // // Simple drive forward auton
         // final var idle = new SwerveRequest.Idle();
         // return Commands.sequence(
