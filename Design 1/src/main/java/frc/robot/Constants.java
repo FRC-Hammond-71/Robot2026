@@ -18,15 +18,20 @@ public class Constants {
 
         public static final Transform3d kLimelightPosition = new Transform3d(
             new Translation3d(
-                Units.inchesToMeters(0.965), 
-                Units.inchesToMeters(11.282), 
-                Units.inchesToMeters(9.578)),
+                Units.inchesToMeters(6.715), 
+                Units.inchesToMeters(11.919), 
+                Units.inchesToMeters(19.195)),  // TODO: Verify that this is from the ground.
             new Rotation3d(
-                Units.degreesToRadians(0),                          // Roll: 0 degrees
-                Units.degreesToRadians(0), // Pitch: degrees
-                Units.degreesToRadians(0)      // Yaw: degrees
+                Units.degreesToRadians(0),      // Roll: 0 degrees
+                Units.degreesToRadians(58.19),  // Pitch
+                Units.degreesToRadians(0)       // Yaw: degrees
             ))
         ;
+
+        public static final Transform3d kLimelightOffsetFromTurretOffset = new Transform3d(
+            kLimelightPosition.getTranslation().minus(Turret.kTurretOffsetFromRobotCenter),
+            kLimelightPosition.getRotation()
+        );
     }
 
     public static class Turret {
@@ -37,6 +42,8 @@ public class Constants {
         public static final double kTurretOffsetY = Units.inchesToMeters(5.282); // Y offset (left +Y, right -Y) from robot center to turret (meters)
         public static final double kTurretOffsetZ = Units.inchesToMeters(14.150); // Z offset (up +Z, down -Z) from robot center to turret (meters)
         public static final double kTurretRezeroAngleDegrees = 0.0; // Rezero position in degrees
+
+        public static final Translation3d kTurretOffsetFromRobotCenter = new Translation3d(kTurretOffsetX, kTurretOffsetY, kTurretOffsetZ);
 
         // Turret mechanical limits (degrees, relative to robot forward)
         public static final double kMinAngleDegrees = -180.0;

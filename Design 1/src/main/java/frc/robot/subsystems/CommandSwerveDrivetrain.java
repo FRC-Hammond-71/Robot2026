@@ -38,8 +38,9 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Limelight.Limelight;
+import frc.robot.util.LimelightOnTurretUtils;
+import edu.wpi.first.math.geometry.Rotation3d;
 import frc.robot.Limelight.LimelightHelpers;
-import frc.robot.Limelight.LimelightHelpers.PoseEstimate;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 
 // #region WARNING
@@ -98,7 +99,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     
         public void updateOdometry() 
         {
-            Pose2d estimatedPose = this.getState().Pose;
+            // Pose2d estimatedPose = this.getState().Pose;
             Rotation2d gyroHeading = this.getState().RawHeading;
             ChassisSpeeds speeds = this.getState().Speeds;
             Limelight limelight = Limelight.useDevice("limelight");
@@ -107,8 +108,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     
             Optional<Pose2d> rawResult = limelight.getRawEstimatedPose();
             Optional<Pose2d> megaTagResult = limelight.getMegaTag2EstimatedPose(gyroHeading, speeds);
-            Optional<Pose2d> stablePose = limelight.getStableEstimatedPose(estimatedPose, gyroHeading, speeds);
-    
+            // Optional<Pose2d> stablePose = limelight.getStableEstimatedPose(estimatedPose, gyroHeading, speeds);
+
+            // Limelight must have 0,0,0 and rotation of 0,0,0 configured relative to the robot center.
+
             if (rawResult.isPresent())
             {
             	this.llRawPosePublisher.set(rawResult.get());
@@ -116,18 +119,38 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             if (megaTagResult.isPresent())
             {
             	this.llMegaTagPosePublisher.set(megaTagResult.get());
+
+                try {
+
+                    // Convert the camera-field MegaTag pose into a robot-field pose using transforms.
+                    Rotation3d turretRotation3d = LimelightHelpers.getCameraPose3d_RobotSpace("limelight").getRotation();
+                    Pose2d cameraFieldPose = megaTagResult.get();
+                    Pose2d convertedRobotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(cameraFieldPose, turretRotation3d, gyroHeading);
+
+                    if (useVision) {
+
+                        addVisionMeasurement(convertedRobotPose, Timer.getFPGATimestamp() - limelight.getLatencyInSeconds());
+                    
+                    }
+
+                    this.llMegaTagPosePublisher.set(convertedRobotPose);
+
+                } 
+                catch (Exception ex) 
+                {
+                    DriverStation.reportWarning("Failed to convert MegaTag Camera Pose to Robot Pose: " + ex.getMessage(), ex.getStackTrace());
+                }
             }
-            if (stablePose.isPresent())
-            {
-            	Pose2d newStablePose = new Pose2d(stablePose.get().getTranslation(), estimatedPose.getRotation());
-    
-            	// Only contribute the stablePose to Pose Estimation!
-            	if (useVision)
-            	{
-                    addVisionMeasurement(newStablePose, Timer.getFPGATimestamp() - limelight.getLatencyInSeconds());
-            	}
-            	this.llStablePosePublisher.set(newStablePose);
-            }
+            // if (stablePose.isPresent())
+            // {
+            //     Pose2d newStablePose = new Pose2d(stablePose.get().getTranslation(), estimatedPose.getRotation());
+            //     // Only contribute the stablePose to Pose Estimation!
+            //     if (useVision)
+            //     {
+            //         addVisionMeasurement(newStablePose, Timer.getFPGATimestamp() - limelight.getLatencyInSeconds());
+            //     }
+            //     this.llStablePosePublisher.set(newStablePose);
+            // }
             this.posePublisher.set(this.getState().Pose);
         }
         public void configureAutoBuilder() {

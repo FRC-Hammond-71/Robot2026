@@ -105,6 +105,7 @@ public class RobotContainer {
         //     point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         // ));
         
+        // TODO: Update with leading shots.
         turret.autoAimCommand(() -> drivetrain.getState().Pose, TargetType.HUB);
 
         joystick.leftBumper()
