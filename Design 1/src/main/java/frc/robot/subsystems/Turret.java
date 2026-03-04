@@ -19,6 +19,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.epilogue.Logged;
+import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.system.plant.DCMotor;
@@ -65,6 +66,9 @@ public class Turret extends SubsystemBase {
     kV, // kV
     kA // kA
   );
+
+  // WCP Throughbore absolute encoder on output shaft
+  private final DutyCycleEncoder m_throughboreEncoder = new DutyCycleEncoder(Constants.Turret.kThroughboreDIOPort);
 
   // Motor controller
   private final TalonFX motor;
@@ -136,8 +140,11 @@ public class Turret extends SubsystemBase {
     // Apply configuration
     motor.getConfigurator().apply(config);
 
-    // Reset encoder position
-    motor.setPosition(0);
+    // Seed TalonFX position from WCP Throughbore absolute encoder
+    if (m_throughboreEncoder.isConnected()) {
+      double absolutePositionRotations = m_throughboreEncoder.get() - Constants.Turret.kEncoderOffset;
+      motor.setPosition(absolutePositionRotations);
+    }
 
     // Initialize simulation
     pivotSim = new SingleJointedArmSim(
@@ -480,8 +487,10 @@ public class Turret extends SubsystemBase {
    * Rezero the turret encoder to 0 degrees.
    */
   private void rezero() {
-    double rezeroPositionRotations = Units.degreesToRadians(Constants.Turret.kTurretRezeroAngleDegrees) / (2.0 * Math.PI);
-    motor.setPosition(rezeroPositionRotations);
+    if (m_throughboreEncoder.isConnected()) {
+      double absolutePositionRotations = m_throughboreEncoder.get() - Constants.Turret.kEncoderOffset;
+      motor.setPosition(absolutePositionRotations);
+    }
   }
 
   /**
