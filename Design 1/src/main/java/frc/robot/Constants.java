@@ -40,8 +40,8 @@ public class Constants {
 
         public static final int kTurretCanID = 44; // CAN ID (dimensionless)
 
-        // WCP Throughbore absolute encoder on output shaft
-        public static final int kThroughboreDIOPort = 0;  // TODO: confirm DIO port
+        // WCP Throughbore CANcoder on output shaft
+        public static final int kThroughboreCanID = 58;
         public static final double kEncoderOffset = 0.0;  // TODO: calibrate so 0.0 = forward (rotations)
 
         public static final double kTurretOffsetX  = Units.inchesToMeters(6.715); // X offset (forward +X, backward -X) from robot center to turret (meters) 
