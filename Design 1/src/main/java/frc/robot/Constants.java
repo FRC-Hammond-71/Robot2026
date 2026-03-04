@@ -96,6 +96,17 @@ public class Constants {
         public static final double kSpeedToleranceRPS = 2.0;
     }
 
+    public static final class Intake {
+        public static final int kIntakeMotorCanID = 18;         // KrakenX60 (TalonFX) — intake shaft
+        public static final int kExtensionMotorCanID = 21;      // NEO (SparkMax) — linear extension // TODO: confirm CAN ID
+
+        // 14t driving 48t gear
+        public static final double kExtensionGearRatio = 48.0 / 14.0; // motor rotations per output rotation
+
+        public static final double kStatorCurrentLimit = 40.0;
+        public static final int kExtensionCurrentLimit = 40;
+    }
+
     public static final class Climber {
         // Kraken (TalonFX) — pulls robot up
         public static final double kClimbSpeedPercent = 0.5;
