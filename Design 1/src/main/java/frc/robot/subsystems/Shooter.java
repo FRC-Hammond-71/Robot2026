@@ -1,9 +1,13 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix6.BaseStatusSignal;
+import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.Slot0Configs;
+import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.Current;
 
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -16,6 +20,11 @@ public class Shooter extends SubsystemBase {
     private final TalonFX m_motorA = new TalonFX(41);
     private final TalonFX m_motorB = new TalonFX(42);
     private final VelocityVoltage m_velocityRequest = new VelocityVoltage(0).withSlot(0);
+
+    private final StatusSignal<AngularVelocity> m_velA = m_motorA.getVelocity();
+    private final StatusSignal<AngularVelocity> m_velB = m_motorB.getVelocity();
+    private final StatusSignal<Current> m_curA = m_motorA.getStatorCurrent();
+    private final StatusSignal<Current> m_curB = m_motorB.getStatorCurrent();
 
     public Shooter() {
         TalonFXConfiguration cfgA = new TalonFXConfiguration();
@@ -56,10 +65,8 @@ public class Shooter extends SubsystemBase {
 
     // --- Ready check ---
     public boolean isAtSpeed(double targetRPS) {
-        double velA = m_motorA.getVelocity().getValueAsDouble();
-        double velB = m_motorB.getVelocity().getValueAsDouble();
-        return Math.abs(velA - targetRPS)  <= ShooterConstants.kSpeedToleranceRPS
-            && Math.abs(velB + targetRPS)  <= ShooterConstants.kSpeedToleranceRPS; // B is negative
+        return Math.abs(m_velA.getValueAsDouble() - targetRPS) <= ShooterConstants.kSpeedToleranceRPS
+            && Math.abs(m_velB.getValueAsDouble() + targetRPS) <= ShooterConstants.kSpeedToleranceRPS; // B is negative
     }
 
     /**
@@ -104,9 +111,10 @@ public class Shooter extends SubsystemBase {
 
     @Override
     public void periodic() {
-        SmartDashboard.putNumber("Shooter/VelocityA_RPS", m_motorA.getVelocity().getValueAsDouble());
-        SmartDashboard.putNumber("Shooter/VelocityB_RPS", m_motorB.getVelocity().getValueAsDouble());
-        SmartDashboard.putNumber("Shooter/CurrentA",      m_motorA.getStatorCurrent().getValueAsDouble());
-        SmartDashboard.putNumber("Shooter/CurrentB",      m_motorB.getStatorCurrent().getValueAsDouble());
+        BaseStatusSignal.refreshAll(m_velA, m_velB, m_curA, m_curB);
+        SmartDashboard.putNumber("Shooter/VelocityA_RPS", m_velA.getValueAsDouble());
+        SmartDashboard.putNumber("Shooter/VelocityB_RPS", m_velB.getValueAsDouble());
+        SmartDashboard.putNumber("Shooter/CurrentA",      m_curA.getValueAsDouble());
+        SmartDashboard.putNumber("Shooter/CurrentB",      m_curB.getValueAsDouble());
     }
 }

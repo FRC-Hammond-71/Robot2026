@@ -5,42 +5,22 @@
 package frc.robot;
 
 import com.ctre.phoenix6.HootAutoReplay;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import frc.robot.subsystems.Intake;
-import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import frc.robot.Commands.CommandUtils;
-import frc.robot.Limelight.Limelight;
-import frc.robot.Limelight.LimelightHelpers;
-import frc.robot.generated.TunerConstants;
-import frc.robot.subsystems.CommandSwerveDrivetrain;
 
 public class Robot extends TimedRobot {
     private Command m_autonomousCommand;
 
     private final RobotContainer m_robotContainer;
-	private final XboxController controller;
     /* log and replay timestamp and joystick data */
-	private SendableChooser<Command> autoChooser;
-    private Command semiAutomatedCommand = null;
-    private StructPublisher<Pose2d> autoTargetPosePublisher = NetworkTableInstance.getDefault().getStructTopic("targetPose", Pose2d.struct).publish();
-    public Intake intake = new Intake();
-    public Limelight Limelight;
-    public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-    //#region Pathplanner
     private final HootAutoReplay m_timeAndJoystickReplay = new HootAutoReplay()
         .withTimestampReplay()
         .withJoystickReplay();
 
     public Robot() {
         m_robotContainer = new RobotContainer();
-        controller = new XboxController(0);
     }
 
     @Override

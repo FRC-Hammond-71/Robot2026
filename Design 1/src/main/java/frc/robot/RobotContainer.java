@@ -152,9 +152,6 @@ public class RobotContainer {
         // joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
         // joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
-        // Reset the field-centric heading on left bumper press.
-        joystick.y().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
-
         drivetrain.registerTelemetry(logger::telemeterize);
         SmartDashboard.putData("Auto Selection", autoChooser);
     }

@@ -129,6 +129,14 @@ public class Turret extends SubsystemBase {
     // Apply gear ratio
     config.Feedback.SensorToMechanismRatio = gearRatio;
 
+    // Apply soft limits using constants (degrees → rotations)
+    double minRotations = Units.degreesToRadians(Constants.Turret.kMinAngleDegrees) / (2.0 * Math.PI);
+    double maxRotations = Units.degreesToRadians(Constants.Turret.kMaxAngleDegrees) / (2.0 * Math.PI);
+    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
+    config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = minRotations;
+    config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
+    config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = maxRotations;
+
     // Apply configuration
     motor.getConfigurator().apply(config);
 

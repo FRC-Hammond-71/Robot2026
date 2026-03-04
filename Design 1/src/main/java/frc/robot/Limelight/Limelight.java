@@ -76,7 +76,7 @@ public class Limelight {
         PoseEstimate es = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(this.name);
 
         // Reject estimates if too few tags ar seen or rotation is extreme
-        if (es == null || !es.isMegaTag2 || es.tagCount < 1 || Math.abs(Math.toDegrees(robotSpeeds.omegaRadiansPerSecond)) > 360 * 2) {
+        if (es == null || !es.isMegaTag2 || es.tagCount < 1 || Math.abs(Math.toDegrees(robotSpeeds.omegaRadiansPerSecond)) > 360) {
             return Optional.empty();
         }
         return Optional.ofNullable(es.pose);
