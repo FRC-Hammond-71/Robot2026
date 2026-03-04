@@ -7,13 +7,19 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Experimental Path Lulu)"
+            "pathName": "SR-SH1"
           }
         },
         {
-          "type": "wait",
+          "type": "path",
           "data": {
-            "waitTime": 1.0
+            "pathName": "SH1-NZR"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "NZ1-SH1"
           }
         }
       ]
