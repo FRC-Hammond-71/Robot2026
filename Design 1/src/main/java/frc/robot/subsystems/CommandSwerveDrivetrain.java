@@ -82,8 +82,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     // public Odometry odometry;
 
+    private StatusSignal<Angle> m_turretPositionSignal = null;
     private BufferedStatusSignal<Angle> m_bufferedTurretAngle = null;
-    private BufferedStatusSignal<Angle> m_bufferedGyroHeading = null;
 
     /* Swerve requests to apply during SysId characterization */
     private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
@@ -168,8 +168,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
         super(drivetrainConstants, modules);
 
+        m_turretPositionSignal = turretPositionSignal;
         m_bufferedTurretAngle = new BufferedStatusSignal<Angle>(turretPositionSignal, TimestampSource.System, 20, 2000);
-        m_bufferedGyroHeading = new BufferedStatusSignal<Angle>(getPigeon2().getYaw(), TimestampSource.System, 20, 2000);
         
         if (Utils.isSimulation()) {
             startSimThread();
@@ -189,15 +189,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public void updateOdometry() {
-        // Pose2d estimatedPose = this.getState().Pose;
-        Rotation2d gyroHeading = this.getState().RawHeading;
-        ChassisSpeeds speeds = this.getState().Speeds;
         Limelight limelight = Limelight.useDevice("limelight");
 
         boolean useVision = SmartDashboard.getBoolean("Drivetrain/useVision", true);
 
         Optional<Pose2d> rawResult = limelight.getRawEstimatedPose();
-        Optional<Pose2d> megaTagResult = limelight.getMegaTag2EstimatedPose(gyroHeading, speeds);
+        Optional<Pose2d> megaTagResult = limelight.getMegaTagEstimatedPose(2); // require at least 2 tags
         // Optional<Pose2d> stablePose = limelight.getStableEstimatedPose(estimatedPose,
         // gyroHeading, speeds);
 
@@ -210,7 +207,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         if (megaTagResult.isPresent()) {
             this.llMegaTagPosePublisher.set(megaTagResult.get());
 
-            if (m_bufferedTurretAngle != null && m_bufferedGyroHeading != null) {
+            if (m_bufferedTurretAngle != null) {
                 try {
                     double visionTimestampSeconds = Timer.getFPGATimestamp() - limelight.getLatencyInSeconds();
 
@@ -218,11 +215,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                             TimestampSource.System);
                     Rotation3d turretRotation3d = new Rotation3d(0.0, 0.0, turretRotations * 2.0 * Math.PI);
 
-                    Rotation2d gyroHeadingAtVision = Rotation2d.fromDegrees(
-                            m_bufferedGyroHeading.getValueAt(visionTimestampSeconds, TimestampSource.System));
-
                     Pose2d convertedRobotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(megaTagResult.get(),
-                            turretRotation3d, gyroHeadingAtVision);
+                            turretRotation3d);
 
                     if (useVision) {
                         addVisionMeasurement(convertedRobotPose, visionTimestampSeconds);
@@ -420,8 +414,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
         if (m_bufferedTurretAngle != null)
             m_bufferedTurretAngle.periodic();
-        if (m_bufferedGyroHeading != null)
-            m_bufferedGyroHeading.periodic();
 
         if (!m_hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
             DriverStation.getAlliance().ifPresent(allianceColor -> {

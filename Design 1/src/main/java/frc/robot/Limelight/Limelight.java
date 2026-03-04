@@ -71,6 +71,14 @@ public class Limelight {
         return (LimelightHelpers.getLatency_Capture("limelight") + LimelightHelpers.getLatency_Pipeline("limelight")) / 1000;
     }
 
+    public Optional<Pose2d> getMegaTagEstimatedPose(int minTagCount) {
+        PoseEstimate es = LimelightHelpers.getBotPoseEstimate_wpiBlue(this.name);
+        if (es == null || es.tagCount < minTagCount) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(es.pose);
+    }
+
     public Optional<Pose2d> getMegaTag2EstimatedPose(Rotation2d robotGyro, ChassisSpeeds robotSpeeds) {
         LimelightHelpers.SetRobotOrientation(this.name, robotGyro.getDegrees(), 0, 0, 0, 0, 0);
         PoseEstimate es = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(this.name);

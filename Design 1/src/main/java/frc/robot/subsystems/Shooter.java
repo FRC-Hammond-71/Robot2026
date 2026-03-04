@@ -65,8 +65,8 @@ public class Shooter extends SubsystemBase {
 
     // --- Ready check ---
     public boolean isAtSpeed(double targetRPS) {
-        return Math.abs(m_velA.getValueAsDouble() - targetRPS) <= ShooterConstants.kSpeedToleranceRPS
-            && Math.abs(m_velB.getValueAsDouble() + targetRPS) <= ShooterConstants.kSpeedToleranceRPS; // B is negative
+        return Math.abs(m_velA.getValueAsDouble() + targetRPS) <= ShooterConstants.kSpeedToleranceRPS
+            && Math.abs(m_velB.getValueAsDouble() - targetRPS) <= ShooterConstants.kSpeedToleranceRPS;
     }
 
     /**

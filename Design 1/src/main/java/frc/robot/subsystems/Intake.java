@@ -55,4 +55,14 @@ public class Intake extends SubsystemBase {
             this
         ).finallyDo(this::stop);
     }
+
+    // TODO: implement when intake deployment mechanism is wired up
+    public Command deployCommand() {
+        throw new UnsupportedOperationException("Intake deploy not implemented");
+    }
+
+    // TODO: implement when intake deployment mechanism is wired up
+    public Command retractCommand() {
+        throw new UnsupportedOperationException("Intake retract not implemented");
+    }
 }

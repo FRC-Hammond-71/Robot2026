@@ -60,16 +60,13 @@ public class BufferedStatusSignal<T>
             throw new IllegalArgumentException("atTime must use TimestampSource " + requiredTimestampSource + ", but was " + atTime.getSource());
         }
 
-        long targetTimeMs = (long)(atTime.getTime() * 1000.0);
-        long elapsedMs = targetTimeMs - firstTimestampMs;
-        int index = (int)(elapsedMs / measurementPeriodMs) % valuesAt.length;
-
-        if (index < 0)
+        if (firstTimestampMs < 0)
         {
-            index += valuesAt.length;
+            return statusSignal.getValueAsDouble();
         }
 
-        return valuesAt[index];
+        long targetTimeMs = (long)(atTime.getTime() * 1000.0);
+        return interpolate(targetTimeMs);
     }
 
     public double getValueAt(double timeSeconds, TimestampSource source)
@@ -79,15 +76,33 @@ public class BufferedStatusSignal<T>
             throw new IllegalArgumentException("source must be " + requiredTimestampSource + ", but was " + source);
         }
 
-        long targetTimeMs = (long)(timeSeconds * 1000.0);
-        long elapsedMs = targetTimeMs - firstTimestampMs;
-        int index = (int)(elapsedMs / measurementPeriodMs) % valuesAt.length;
-
-        if (index < 0)
+        if (firstTimestampMs < 0)
         {
-            index += valuesAt.length;
+            return statusSignal.getValueAsDouble();
         }
 
-        return valuesAt[index];
+        long targetTimeMs = (long)(timeSeconds * 1000.0);
+        return interpolate(targetTimeMs);
+    }
+
+        /**
+     * Linearly interpolates between the two buffer slots bracketing targetTimeMs.
+     * Clamps to the earliest stored value if targetTimeMs is before firstTimestampMs.
+     */
+    private double interpolate(long targetTimeMs)
+    {
+        double exactIndex = (targetTimeMs - firstTimestampMs) / measurementPeriodMs;
+
+        // Clamp to earliest available value if querying before buffer start
+        if (exactIndex < 0) exactIndex = 0;
+
+        int lowerIdx = (int) Math.floor(exactIndex);
+        int upperIdx = lowerIdx + 1;
+        double fraction = exactIndex - lowerIdx;
+
+        int i1 = ((lowerIdx % valuesAt.length) + valuesAt.length) % valuesAt.length;
+        int i2 = ((upperIdx % valuesAt.length) + valuesAt.length) % valuesAt.length;
+
+        return valuesAt[i1] + fraction * (valuesAt[i2] - valuesAt[i1]);
     }
 }

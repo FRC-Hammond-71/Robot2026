@@ -17,8 +17,6 @@ import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.ctre.phoenix6.swerve.SwerveDrivetrain;
-import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.controller.ArmFeedforward;
@@ -129,13 +127,11 @@ public class Turret extends SubsystemBase {
     // Apply gear ratio
     config.Feedback.SensorToMechanismRatio = gearRatio;
 
-    // Apply soft limits using constants (degrees → rotations)
-    double minRotations = Units.degreesToRadians(Constants.Turret.kMinAngleDegrees) / (2.0 * Math.PI);
-    double maxRotations = Units.degreesToRadians(Constants.Turret.kMaxAngleDegrees) / (2.0 * Math.PI);
+    // Enforce angle limits in hardware so PID cannot drive outside the range
     config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-    config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = minRotations;
+    config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = Constants.Turret.kMinAngleDegrees / 360.0;
     config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-    config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = maxRotations;
+    config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = Constants.Turret.kMaxAngleDegrees / 360.0;
 
     // Apply configuration
     motor.getConfigurator().apply(config);
@@ -149,8 +145,8 @@ public class Turret extends SubsystemBase {
       gearRatio,
       0.01, // Arm moment of inertia - Small value since there are no arm parameters
       0.1, // Arm length (m) - Small value since there are no arm parameters
-      Units.degreesToRadians(-180), // Min angle (rad)
-      Units.degreesToRadians(180), // Max angle (rad)
+      Units.degreesToRadians(Constants.Turret.kMinAngleDegrees), // Min angle (rad)
+      Units.degreesToRadians(Constants.Turret.kMaxAngleDegrees), // Max angle (rad)
       false, // Simulate gravity - Disable gravity for pivot
       Units.degreesToRadians(0) // Starting position (rad)
     );
@@ -295,16 +291,23 @@ public class Turret extends SubsystemBase {
    * @param acceleration The acceleration in rad/s²
    */
   public void setAngle(double angleDegrees, double acceleration) {
-    // Track target for telemetry
+    // Clamp to allowed range before sending to motor
+    angleDegrees = Math.max(Constants.Turret.kMinAngleDegrees, Math.min(Constants.Turret.kMaxAngleDegrees, angleDegrees));
+
+    // Track target for telemetry (keep desired angle so getErrorDegrees() reflects true misalignment)
     this.targetAngleDegrees = angleDegrees;
-    this.targetVelocityDegPerSec = 0; // Position control, not velocity control
-    
+    this.targetVelocityDegPerSec = 0;
+
+    if (!Constants.Turret.kTurretEnabled) {
+      // Hold at minimum angle (closest to forward) when turret is disabled
+      motor.setControl(positionRequest.withPosition(Constants.Turret.kMinAngleDegrees / 360.0));
+      return;
+    }
+
     // Convert degrees to rotations
     double angleRadians = Units.degreesToRadians(angleDegrees);
     double positionRotations = angleRadians / (2.0 * Math.PI);
 
-    // double ffVolts = feedforward.calculate(getVelocity(), acceleration);
-    //motor.setControl(positionRequest.withPosition(positionRotations).withFeedForward(ffVolts));
     motor.setControl(positionRequest.withPosition(positionRotations));
   }
 
@@ -324,15 +327,17 @@ public class Turret extends SubsystemBase {
   public void setVelocity(double velocityDegPerSec, double acceleration) {
     // Track target for telemetry
     this.targetVelocityDegPerSec = velocityDegPerSec;
-    // Keep target angle at current position when doing velocity control
     this.targetAngleDegrees = Units.rotationsToDegrees(getPosition());
-    
+
+    if (!Constants.Turret.kTurretEnabled) {
+      motor.setControl(positionRequest.withPosition(Constants.Turret.kMinAngleDegrees / 360.0));
+      return;
+    }
+
     // Convert degrees/sec to rotations/sec
     double velocityRadPerSec = Units.degreesToRadians(velocityDegPerSec);
     double velocityRotations = velocityRadPerSec / (2.0 * Math.PI);
 
-    double ffVolts = feedforward.calculate(getVelocity(), acceleration);
-    //motor.setControl(velocityRequest.withVelocity(velocityRotations).withFeedForward(ffVolts));
     motor.setControl(velocityRequest.withVelocity(velocityRotations));
   }
 
@@ -341,10 +346,14 @@ public class Turret extends SubsystemBase {
    * @param voltage The voltage to apply
    */
   public void setVoltage(double voltage) {
-    // When using direct voltage control, track current position as target
     this.targetAngleDegrees = Units.rotationsToDegrees(getPosition());
     this.targetVelocityDegPerSec = 0;
-    
+
+    if (!Constants.Turret.kTurretEnabled) {
+      motor.setControl(positionRequest.withPosition(Constants.Turret.kMinAngleDegrees / 360.0));
+      return;
+    }
+
     motor.setVoltage(voltage);
   }
 
@@ -421,7 +430,7 @@ public class Turret extends SubsystemBase {
       if (solution.isValid) {
         setAngle(solution.turretAngleDegrees);
       }
-    }).withName("AutoAim-" + target.toString());
+    }).finallyDo(__ -> setVelocity(0)).withName("AutoAim-" + target.toString());
   }
 
   //------------------------ Tuning -----------------------//

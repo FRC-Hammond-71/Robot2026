@@ -12,8 +12,11 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentric;
 
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -36,7 +39,7 @@ import frc.robot.subsystems.Turret;
 import frc.robot.util.dashboard.TurretUtil;
 import frc.robot.util.dashboard.TurretUtil.TargetType;
 import frc.robot.Constants;
-import frc.robot.Constants.ShooterConstants;
+import frc.robot.Commands.GameCommands;
 import frc.robot.Commands.ShootFuelCommand;
 
 public class RobotContainer {
@@ -61,6 +64,9 @@ public class RobotContainer {
             .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
+    private final SwerveRequest.FieldCentricFacingAngle driveLookingAtHub = new SwerveRequest.FieldCentricFacingAngle()
+            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1)
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private final Telemetry logger = new Telemetry(MaxSpeed);
     private final CommandXboxController joystick = new CommandXboxController(0);
     public final CommandSwerveDrivetrain drivetrain = new CommandSwerveDrivetrain(
@@ -69,6 +75,7 @@ public class RobotContainer {
         TunerConstants.FrontLeft, TunerConstants.FrontRight, TunerConstants.BackLeft, TunerConstants.BackRight
     );
     private final SendableChooser<Command> autoChooser;
+    private final GameCommands gameCommands;
 
 
     //#endregion
@@ -76,7 +83,9 @@ public class RobotContainer {
 
 
     public RobotContainer() {
-        registerNamedCommands();
+        gameCommands = new GameCommands(shooter, turret, drivetrain);
+        gameCommands.registerNamedCommands(); // Registers ShootAtHub, PassLeft, PassRight
+        registerNamedCommands(); // Registers fine-grained subsystem named commands
         autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()`
         configureBindings();
         SmartDashboard.putData("Auto Mode", autoChooser);
@@ -106,21 +115,40 @@ public class RobotContainer {
         NamedCommands.registerCommand("Climb",         climber.climbCommand());
     }
 
+    private SlewRateLimiter xLimiter = new SlewRateLimiter(2);
+    private SlewRateLimiter yLimiter = new SlewRateLimiter(2);
+    private SlewRateLimiter rotLimiter = new SlewRateLimiter(Math.PI / 2);
 
     private void configureBindings() {
+
+        driveLookingAtHub.HeadingController.setPID(5, 0, 0);
+        driveLookingAtHub.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
+
         // Note that X is defined as forward according to WPILib convention,
         // and Y is defined as to the left according to WPILib convention.
         drivetrain.setDefaultCommand(
-            // Drivetrain will execute this command periodically
             drivetrain.applyRequest(() -> {
+                // Reduce speed to 30% in test mode for safety
+                double speedScale = DriverStation.isTest() ? 0.3 : 1.0;
 
-                // TODO: Conditionally, when autoaiming is active use FieldCentricFacingAngle instead. 
-                
-                return new FieldCentric()
-                    .withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
-                    .withVelocityY(-joystick.getLeftX() * MaxSpeed) // Drive left with negative X (left)
-                    .withRotationalRate(-joystick.getRightX() * MaxAngularRate); // Drive counterclockwise with negative X (left)
+                // B: face hub — teleop only (B is used for aim+shoot in test mode)
+                if (!DriverStation.isTest() && joystick.b().getAsBoolean()) {
+                    Pose2d robotPose = drivetrain.getState().Pose;
+                    Translation3d hub = FieldConstants.getAllianceHub();
+                    Rotation2d angleToHub = new Rotation2d(
+                        hub.getX() - robotPose.getX(),
+                        hub.getY() - robotPose.getY()
+                    );
+                    return driveLookingAtHub
+                        .withVelocityX(xLimiter.calculate(-joystick.getLeftY() * MaxSpeed))
+                        .withVelocityY(yLimiter.calculate(-joystick.getLeftX() * MaxSpeed))
+                        .withTargetDirection(angleToHub);
+                }
 
+                return drive
+                    .withVelocityX(xLimiter.calculate(-joystick.getLeftY() * MaxSpeed * speedScale))
+                    .withVelocityY(yLimiter.calculate(-joystick.getLeftX() * MaxSpeed * speedScale))
+                    .withRotationalRate(rotLimiter.calculate(-joystick.getRightX() * MaxAngularRate * speedScale));
             })
         );
 
@@ -137,16 +165,43 @@ public class RobotContainer {
         // ));
         
         // turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.HUB);
+        
+        // Turret continuously auto-aims at the hub during teleop (and test when idle).
+        turret.setDefaultCommand(
+            turret.autoAimCommand(
+                () -> drivetrain.getState().Pose,
+                drivetrain::getFieldRelativeSpeeds,
+                TargetType.HUB
+            )
+        );
 
-        RobotModeTriggers.test().whileTrue(Commands.run(() -> {
+        // All test commands run only while button is held; release = immediate stop.
+        // Drive is reduced to 30% speed automatically (see default command above).
 
-            shooter.setVelocity(joystick.getLeftTriggerAxis()  * ShooterConstants.kMaxSpeedRPS);
+        // A: turret auto-tracking with lead compensation (no shooter)
+        RobotModeTriggers.test().and(joystick.a()).whileTrue(
+            turret.autoAimCommand(
+                () -> drivetrain.getState().Pose,
+                drivetrain::getFieldRelativeSpeeds,
+                TargetType.HUB
+            )
+        );
 
-        }));
+        // B: turret aim + shooter spinup (full shot readiness, no feeder)
+        RobotModeTriggers.test().and(joystick.b()).whileTrue(
+            gameCommands.aimAndShootCommand(TargetType.HUB)
+        );
 
-        // joystick.leftTrigger()
-        // joystick.leftBumper()
-        // .whileTrue(new ShootFuelCommand(shooter, drivetrain));
+        // X: rotate robot so the hub falls inside the turret's allowed range
+        RobotModeTriggers.test().and(joystick.x()).whileTrue(
+            gameCommands.rotateIntoRangeCommand(
+                TargetType.HUB,
+                () -> FieldConstants.getAllianceHub().toTranslation2d()
+            )
+        );
+
+        // Left bumper: intake (hold to run, release to stop)
+        joystick.leftBumper().whileTrue(intake.intakeCommand(1.0));
 
         // Full climb sequence: align (odometry) → extend → climb
         joystick.start().onTrue(
@@ -168,7 +223,7 @@ public class RobotContainer {
 
         joystick.y().onTrue(
             Commands.runOnce(() -> {
-                drivetrain.resetPose(kStartingPose);
+                // drivetrain.resetPose(kStartingPose);
                 drivetrain.seedFieldCentric();
             }, drivetrain)
         );

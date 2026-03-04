@@ -8,6 +8,7 @@ import frc.robot.Limelight.Limelight;
 
 import java.util.Optional;
 
+// We aren't using
 public class VisionSubsystem extends SubsystemBase {
 
     private static final String kLimelightName = "limelight";

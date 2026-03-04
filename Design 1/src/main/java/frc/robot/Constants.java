@@ -48,7 +48,7 @@ public class Constants {
         public static final Translation3d kTurretOffsetFromRobotCenter = new Translation3d(kTurretOffsetX, kTurretOffsetY, kTurretOffsetZ);
 
         // Turret mechanical limits (degrees, relative to robot forward)
-        public static final double kMinAngleDegrees = -180.0;
+        public static final double kMinAngleDegrees = 90.0;
         public static final double kMaxAngleDegrees = 180.0;
 
         // Shooting range limits (meters)
@@ -66,6 +66,7 @@ public class Constants {
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
         public static final double kMaxVelocity = 4; // Maximum velocity (rad/s)
         public static final double kMaxAcceleration = 4; // Maximum acceleration (rad/s²)
+        public static final boolean kTurretEnabled = true; // Set false if turret is mechanically/electrically broken; holds at min angle
         public static final boolean kBrakeMode = true; // Brake mode enabled (boolean)
         public static final boolean kEnableStatorLimit = true; // Stator current limit enabled (boolean)
         public static final double kStatorCurrentLimit = 40; // Stator current limit (amperes)
@@ -90,7 +91,7 @@ public class Constants {
         public static final double kD = 0.0;
         public static final double kV = 0.12;
     
-        public static final double kMaxSpeedRPS       = 45.0;
+        public static final double kMaxSpeedRPS       = 80.0;
         public static final double kMinSpeedRPS       = 15.0;
         public static final double kSpeedToleranceRPS = 2.0;
     }
