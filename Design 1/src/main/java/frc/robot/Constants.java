@@ -93,10 +93,47 @@ public class Constants {
         public static final double kSpeedToleranceRPS = 2.0;
     }
 
-    public static final class Climber
-    {
-        public static double SpeedPercent = 0.5; 
-        public static double TimeInSeconds = 0.75;
+    public static final class Climber {
+
+        // ─── Kraken X60 (TalonFX) ──────────────────────────────────────────
+        public static final int kClimberCanID = 19;
+
+        /** Duty-cycle speed used by climbCommand (0–1). */
+        public static double SpeedPercent = 0.5;
+        /** How long climbCommand runs the Kraken X60 (seconds). */
+        public static double TimeInSeconds = 3.0;
+
+        // PID / feedforward for the Kraken X60 (slot 0)
+        public static final double kP = 0.5;    // Proportional gain
+        public static final double kI = 0.0;    // Integral gain
+        public static final double kD = 0.01;   // Derivative gain
+        public static final double kS = 0.25;   // Static friction (V)
+        public static final double kV = 0.12;   // Velocity feedforward (V / (rot/s))
+
+        /** Motor rotations per one full mechanism rotation. */
+        public static final double kGearRatio = 10.0;
+
+        // ─── Extension DC motor (PWM) ───────────────────────────────────────
+        /** PWM port on the RoboRIO wired to the extension motor controller. */
+        public static final int kExtensionMotorPort = 0;
+        /** Duty-cycle speed for extension (0–1). */
+        public static final double kExtensionSpeed = 0.75;
+        /** How long the extension motor runs (seconds). */
+        public static final double kExtensionTimeSeconds = 2.0;
+
+        // ─── Auto-aim target (field coordinates, meters) ───────────────────
+        /** X field position of the climb target (e.g. chain/bar center). */
+        public static final double kClimbTargetX = 8.774;
+        /** Y field position of the climb target. */
+        public static final double kClimbTargetY = 4.026;
+
+        // ─── Heading PID for drivetrain auto-aim ───────────────────────────
+        /** Proportional gain: (rad/s output) per (rad of heading error). */
+        public static final double kHeadingKP = 4.0;
+        public static final double kHeadingKI = 0.0;
+        public static final double kHeadingKD = 0.1;
+        /** Auto-aim is considered complete within this many degrees of target. */
+        public static final double kHeadingToleranceDegrees = 2.0;
     }
 
 }
