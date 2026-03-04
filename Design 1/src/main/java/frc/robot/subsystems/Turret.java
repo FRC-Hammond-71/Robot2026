@@ -15,11 +15,13 @@ import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.configs.CANcoderConfiguration;
+import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.epilogue.Logged;
-import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.system.plant.DCMotor;
@@ -67,8 +69,8 @@ public class Turret extends SubsystemBase {
     kA // kA
   );
 
-  // WCP Throughbore absolute encoder on output shaft
-  private final DutyCycleEncoder m_throughboreEncoder = new DutyCycleEncoder(Constants.Turret.kThroughboreDIOPort);
+  // WCP Throughbore CANcoder on output shaft
+  private final CANcoder m_cancoder = new CANcoder(Constants.Turret.kThroughboreCanID);
 
   // Motor controller
   private final TalonFX motor;
@@ -128,8 +130,17 @@ public class Turret extends SubsystemBase {
       ? NeutralModeValue.Brake
       : NeutralModeValue.Coast;
 
-    // Apply gear ratio
-    config.Feedback.SensorToMechanismRatio = gearRatio;
+    // Configure WCP Throughbore CANcoder
+    CANcoderConfiguration cancoderConfig = new CANcoderConfiguration();
+    cancoderConfig.MagnetSensor.MagnetOffset = Constants.Turret.kEncoderOffset;
+    m_cancoder.getConfigurator().apply(cancoderConfig);
+
+    // Fuse CANcoder as feedback source — TalonFX uses absolute position from CANcoder
+    // combined with internal encoder velocity for high-rate closed-loop
+    config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
+    config.Feedback.FeedbackRemoteSensorID = Constants.Turret.kThroughboreCanID;
+    config.Feedback.RotorToSensorRatio = gearRatio; // motor rotations per output (CANcoder) rotation
+    config.Feedback.SensorToMechanismRatio = 1.0;   // CANcoder is on the output shaft
 
     // Enforce angle limits in hardware so PID cannot drive outside the range
     config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
@@ -139,12 +150,6 @@ public class Turret extends SubsystemBase {
 
     // Apply configuration
     motor.getConfigurator().apply(config);
-
-    // Seed TalonFX position from WCP Throughbore absolute encoder
-    if (m_throughboreEncoder.isConnected()) {
-      double absolutePositionRotations = m_throughboreEncoder.get() - Constants.Turret.kEncoderOffset;
-      motor.setPosition(absolutePositionRotations);
-    }
 
     // Initialize simulation
     pivotSim = new SingleJointedArmSim(
@@ -484,13 +489,14 @@ public class Turret extends SubsystemBase {
     }
   }
   /**
-   * Rezero the turret encoder to 0 degrees.
+   * Rezero the turret by re-applying the CANcoder magnet offset.
+   * FusedCANcoder keeps the TalonFX synced automatically, so this just
+   * reconfirms the offset in case it drifted after a hot restart.
    */
   private void rezero() {
-    if (m_throughboreEncoder.isConnected()) {
-      double absolutePositionRotations = m_throughboreEncoder.get() - Constants.Turret.kEncoderOffset;
-      motor.setPosition(absolutePositionRotations);
-    }
+    CANcoderConfiguration cancoderConfig = new CANcoderConfiguration();
+    cancoderConfig.MagnetSensor.MagnetOffset = Constants.Turret.kEncoderOffset;
+    m_cancoder.getConfigurator().apply(cancoderConfig);
   }
 
   /**
