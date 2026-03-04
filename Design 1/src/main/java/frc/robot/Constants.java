@@ -4,6 +4,8 @@ import com.pathplanner.lib.path.PathConstraints;
 
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -93,10 +95,23 @@ public class Constants {
         public static final double kSpeedToleranceRPS = 2.0;
     }
 
-    public static final class Climber
-    {
-        public static double SpeedPercent = 0.5; 
-        public static double TimeInSeconds = 0.75;
+    public static final class Climber {
+        // Kraken (TalonFX) — pulls robot up
+        public static final double kClimbSpeedPercent = 0.5;
+        public static final double kClimbTimeSeconds = 0.75;
+
+        // Spark Max + brushed DC — linear extension to engage climbing structure
+        public static final int kExtensionSparkCanID = 20; // TODO: confirm CAN ID
+        public static final double kExtensionSpeedPercent = 1.0;
+        public static final double kExtensionTimeSeconds = 1.0; // TODO: measure on robot
+
+        // Field pose to drive to before climbing (TODO: measure on field)
+        public static final Pose2d kClimbAlignPose = new Pose2d(0.0, 0.0, Rotation2d.fromDegrees(0));
+
+        // PathPlanner constraints for the alignment drive
+        public static final PathConstraints kAlignPathConstraints = new PathConstraints(
+            1.0, 1.0, Math.PI, Math.PI
+        );
     }
 
 }

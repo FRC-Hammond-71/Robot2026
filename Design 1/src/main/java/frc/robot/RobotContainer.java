@@ -6,16 +6,11 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 
-import java.lang.reflect.Field;
 import java.util.Optional;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
-import com.ctre.phoenix6.Utils;
-import com.ctre.phoenix6.swerve.SwerveDrivetrain;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentric;
-import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
-import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -36,10 +31,10 @@ import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Climber;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import com.pathplanner.lib.auto.AutoBuilder;
-import com.pathplanner.lib.commands.FollowPathCommand;
 import frc.robot.subsystems.Turret;
 import frc.robot.util.dashboard.TurretUtil;
 import frc.robot.util.dashboard.TurretUtil.TargetType;
+import frc.robot.Constants;
 import frc.robot.Constants.ShooterConstants;
 import frc.robot.Commands.ShootFuelCommand;
 
@@ -128,10 +123,18 @@ public class RobotContainer {
         // joystick.leftBumper()
         // .whileTrue(new ShootFuelCommand(shooter, drivetrain));
 
-        // joystick.pov(180)
-        // .whileTrue(climber.downCommand(1));
-        // joystick.pov(0)
-        // .whileTrue(climber.upCommand(1));
+        // Full climb sequence: align (odometry) → extend → climb
+        joystick.start().onTrue(
+            Commands.sequence(
+                AutoBuilder.pathfindToPose(Constants.Climber.kClimbAlignPose, Constants.Climber.kAlignPathConstraints),
+                climber.extendCommand(),
+                climber.climbCommand()
+            ).withName("Full Climb Sequence")
+        );
+
+        // Manual overrides (hold back + POV for fine control)
+        joystick.back().and(joystick.pov(0)).whileTrue(climber.upCommand(1));
+        joystick.back().and(joystick.pov(180)).whileTrue(climber.downCommand(1));
 
         joystick.pov(90)
         .whileTrue(spindexer.clockwiseCommand(1));
