@@ -31,6 +31,7 @@ import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Climber;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.auto.NamedCommands;
 import frc.robot.subsystems.Turret;
 import frc.robot.util.dashboard.TurretUtil;
 import frc.robot.util.dashboard.TurretUtil.TargetType;
@@ -75,10 +76,34 @@ public class RobotContainer {
 
 
     public RobotContainer() {
-
+        registerNamedCommands();
         autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()`
         configureBindings();
         SmartDashboard.putData("Auto Mode", autoChooser);
+    }
+
+    private void registerNamedCommands() {
+        // Intake
+        NamedCommands.registerCommand("Intake",      intake.intakeCommand(1.0));
+        NamedCommands.registerCommand("Score",       intake.scoreCommand(1.0));
+
+        // Spindexer
+        NamedCommands.registerCommand("SpindexerIn",  spindexer.clockwiseCommand(1));
+        NamedCommands.registerCommand("SpindexerOut", spindexer.counterClockwiseCommand(1));
+
+        // Shooter
+        NamedCommands.registerCommand("Shoot", new ShootFuelCommand(shooter, drivetrain));
+
+        // Turret
+        NamedCommands.registerCommand("AimHub",       turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.HUB));
+        NamedCommands.registerCommand("AimLeftPass",  turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.LEFT_PASS));
+        NamedCommands.registerCommand("AimRightPass", turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.RIGHT_PASS));
+        NamedCommands.registerCommand("TurretForward", turret.moveToAngleCommand(0));
+        NamedCommands.registerCommand("StopTurret",    turret.stopCommand());
+
+        // Climber
+        NamedCommands.registerCommand("ExtendClimber", climber.extendCommand());
+        NamedCommands.registerCommand("Climb",         climber.climbCommand());
     }
 
 
