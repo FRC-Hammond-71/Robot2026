@@ -40,6 +40,10 @@ public class Constants {
 
         public static final int kTurretCanID = 44; // CAN ID (dimensionless)
 
+        // WCP Throughbore absolute encoder on output shaft
+        public static final int kThroughboreDIOPort = 0;  // TODO: confirm DIO port
+        public static final double kEncoderOffset = 0.0;  // TODO: calibrate so 0.0 = forward (rotations)
+
         public static final double kTurretOffsetX  = Units.inchesToMeters(6.715); // X offset (forward +X, backward -X) from robot center to turret (meters) 
         public static final double kTurretOffsetY = Units.inchesToMeters(5.282); // Y offset (left +Y, right -Y) from robot center to turret (meters)
         public static final double kTurretOffsetZ = Units.inchesToMeters(14.150); // Z offset (up +Z, down -Z) from robot center to turret (meters)
@@ -56,7 +60,7 @@ public class Constants {
         public static final double kMaxShootingDistance = 5.5;
 
         // Motor and control constants
-        public static final double kGearRatio = 15; // Gear ratio (dimensionless)
+        public static final double kGearRatio = (48.0 / 18.0) * (120.0 / 35.0); // 18t -> 48t (same shaft) -> 35t -> 120t
         public static final double kKP = 8; // Proportional gain (dimensionless)
         public static final double kKI = 0; // Integral gain (dimensionless)
         public static final double kKD = 0.1; // Derivative gain (dimensionless)
