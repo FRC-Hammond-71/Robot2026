@@ -52,16 +52,16 @@ public class Constants {
         public static final Translation3d kTurretOffsetFromRobotCenter = new Translation3d(kTurretOffsetX, kTurretOffsetY, kTurretOffsetZ);
 
         // Turret mechanical limits (degrees, relative to robot forward)
-        public static final double kMinAngleDegrees = 90.0;
-        public static final double kMaxAngleDegrees = 180.0;
+        public static final double kMinAngleDegrees = -90;
+        public static final double kMaxAngleDegrees = 90;
 
         // Shooting range limits (meters)
         public static final double kMinShootingDistance = 1.0;
         public static final double kMaxShootingDistance = 5.5;
 
         // Motor and control constants
-        public static final double kGearRatio = (48.0 / 18.0) * (120.0 / 35.0); // 18t -> 48t (same shaft) -> 35t -> 120t
-        public static final double kKP = 8; // Proportional gain (dimensionless)
+        public static final double kGearRatio = (48 / 14) * (120 / 35); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
+        public static final double kKP = 1; // Proportional gain (dimensionless)
         public static final double kKI = 0; // Integral gain (dimensionless)
         public static final double kKD = 0.1; // Derivative gain (dimensionless)
         public static final double kKS = 0; // Static friction feedforward (volts)
@@ -102,7 +102,7 @@ public class Constants {
 
     public static final class Intake {
         public static final int kIntakeMotorCanID = 18;         // KrakenX60 (TalonFX) — intake shaft
-        public static final int kExtensionMotorCanID = 21;      // NEO (SparkMax) — linear extension // TODO: confirm CAN ID
+        public static final int kExtensionMotorCanID = 53;      // NEO (SparkMax) — linear extension // TODO: confirm CAN ID
 
         // 14t driving 48t gear
         public static final double kExtensionGearRatio = 48.0 / 14.0; // motor rotations per output rotation

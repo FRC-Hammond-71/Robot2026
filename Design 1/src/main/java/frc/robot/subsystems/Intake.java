@@ -21,9 +21,7 @@ public class Intake extends SubsystemBase {
     private final TalonFX m_intakeMotor = new TalonFX(Constants.Intake.kIntakeMotorCanID);
 
     // NEO — linear extension (14t driving 48t)
-    private final SparkMax m_extensionMotor = new SparkMax(
-        Constants.Intake.kExtensionMotorCanID, MotorType.kBrushless
-    );
+    private final SparkMax m_extensionMotor = new SparkMax(Constants.Intake.kExtensionMotorCanID, MotorType.kBrushless);
 
     public Intake() {
         // KrakenX60 config
@@ -62,8 +60,6 @@ public class Intake extends SubsystemBase {
         return Commands.runEnd(() -> score(speed), this::stop, this).withName("Score");
     }
 
-    // --- Linear extension (NEO) ---
-
     public void extend(double speed) {
         m_extensionMotor.set(speed);
     }
@@ -86,15 +82,5 @@ public class Intake extends SubsystemBase {
 
     public Command retractCommand(double speed) {
         return Commands.runEnd(() -> retract(speed), this::stopExtension, this).withName("Intake Retract");
-    }
-
-    // TODO: implement when intake deployment mechanism is wired up
-    public Command deployCommand() {
-        throw new UnsupportedOperationException("Intake deploy not implemented");
-    }
-
-    // TODO: implement when intake deployment mechanism is wired up
-    public Command retractCommand() {
-        throw new UnsupportedOperationException("Intake retract not implemented");
     }
 }

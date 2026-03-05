@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
@@ -70,7 +71,7 @@ public class Turret extends SubsystemBase {
   );
 
   // WCP Throughbore CANcoder on output shaft
-  private final CANcoder m_cancoder = new CANcoder(Constants.Turret.kThroughboreCanID);
+  // private final CANcoder m_cancoder = new CANcoder(Constants.Turret.kThroughboreCanID);
 
   // Motor controller
   private final TalonFX motor;
@@ -131,16 +132,17 @@ public class Turret extends SubsystemBase {
       : NeutralModeValue.Coast;
 
     // Configure WCP Throughbore CANcoder
-    CANcoderConfiguration cancoderConfig = new CANcoderConfiguration();
-    cancoderConfig.MagnetSensor.MagnetOffset = Constants.Turret.kEncoderOffset;
-    m_cancoder.getConfigurator().apply(cancoderConfig);
+    // CANcoderConfiguration cancoderConfig = new CANcoderConfiguration();
+    // cancoderConfig.MagnetSensor.MagnetOffset = Constants.Turret.kEncoderOffset;
+    // m_cancoder.getConfigurator().apply(cancoderConfig);
 
     // Fuse CANcoder as feedback source — TalonFX uses absolute position from CANcoder
     // combined with internal encoder velocity for high-rate closed-loop
-    config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
-    config.Feedback.FeedbackRemoteSensorID = Constants.Turret.kThroughboreCanID;
-    config.Feedback.RotorToSensorRatio = gearRatio; // motor rotations per output (CANcoder) rotation
-    config.Feedback.SensorToMechanismRatio = 1.0;   // CANcoder is on the output shaft
+    // config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
+    // config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
+    // config.Feedback.FeedbackRemoteSensorID = Constants.Turret.kThroughboreCanID;
+    config.Feedback.RotorToSensorRatio = 1; // motor rotations per output (CANcoder) rotation
+    config.Feedback.SensorToMechanismRatio = gearRatio;   // CANcoder is on the output shaft
 
     // Enforce angle limits in hardware so PID cannot drive outside the range
     config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
@@ -162,6 +164,8 @@ public class Turret extends SubsystemBase {
       false, // Simulate gravity - Disable gravity for pivot
       Units.degreesToRadians(0) // Starting position (rad)
     );
+
+    this.resetAngle();
   }
 
   /**
@@ -176,6 +180,13 @@ public class Turret extends SubsystemBase {
       statorCurrentSignal,
       temperatureSignal
     );
+
+    SmartDashboard.putNumber("Turret Position", getAngle());
+  }
+
+  public void resetAngle()
+  {
+    this.motor.setPosition(Degrees.of(180));
   }
 
   /**
@@ -226,6 +237,13 @@ public class Turret extends SubsystemBase {
     // Rotations
     return positionSignal.getValueAsDouble();
   }
+
+
+  public double getAngle() {
+    return positionSignal.getValue().in(Degrees);
+  } 
+
+
 
   /**
    * Get the current velocity in rotations per second.
@@ -496,7 +514,7 @@ public class Turret extends SubsystemBase {
   private void rezero() {
     CANcoderConfiguration cancoderConfig = new CANcoderConfiguration();
     cancoderConfig.MagnetSensor.MagnetOffset = Constants.Turret.kEncoderOffset;
-    m_cancoder.getConfigurator().apply(cancoderConfig);
+    // m_cancoder.getConfigurator().apply(cancoderConfig);
   }
 
   /**

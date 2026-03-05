@@ -11,8 +11,8 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class Spindexer extends SubsystemBase
 {
-    private final SparkMax motor = new SparkMax(40, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushed);
-    private final SparkMax kicker = new SparkMax(52, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushless);
+    private final SparkMax motor = new SparkMax(40, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushless);
+    private final SparkMax kicker = new SparkMax(52, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushed);
 
     public Spindexer() {
         SparkMaxConfig motorConfig = new SparkMaxConfig();
@@ -26,12 +26,12 @@ public class Spindexer extends SubsystemBase
 
     public void clockwise(double speed) {
         motor.set(speed);
-        kicker.set(speed);
+        kicker.set(-speed);
     }
 
     public void counterclockwise(double speed) {
         motor.set(-speed);
-        kicker.set(-speed);
+        kicker.set(speed);
     }
 
     public void stop() {

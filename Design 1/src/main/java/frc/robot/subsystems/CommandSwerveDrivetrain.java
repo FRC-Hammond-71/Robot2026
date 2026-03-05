@@ -76,6 +76,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private StructPublisher<Pose2d> llMegaTagPosePublisher = NetworkTableInstance.getDefault()
             .getStructTopic("ll_MegaTagPose", Pose2d.struct).publish();
 
+            private StructPublisher<Pose2d> blehPublisher = NetworkTableInstance.getDefault()
+            .getStructTopic("ll_Bruh", Pose2d.struct).publish();
+
+
     // private StructPublisher<Pose2d> llStablePosePublisher =
     // NetworkTableInstance.getDefault()
     // .getStructTopic("ll_StablePose", Pose2d.struct).publish();
@@ -201,14 +205,14 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         // Limelight must have 0,0,0 and rotation of 0,0,0 configured relative to the
         // robot center.
 
-        if (rawResult.isPresent()) {
+        if (rawResult.isPresent() && !rawResult.get().equals(Pose2d.kZero)) {
             this.llRawPosePublisher.set(rawResult.get());
         }
-        if (megaTagResult.isPresent()) {
+        if (megaTagResult.isPresent() && !megaTagResult.get().equals(Pose2d.kZero)) {
+            
             this.llMegaTagPosePublisher.set(megaTagResult.get());
 
-            if (m_bufferedTurretAngle != null) {
-                try {
+
                     double visionTimestampSeconds = Timer.getFPGATimestamp() - limelight.getLatencyInSeconds();
 
                     double turretRotations = m_bufferedTurretAngle.getValueAt(visionTimestampSeconds,
@@ -218,17 +222,11 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     Pose2d convertedRobotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(megaTagResult.get(),
                             turretRotation3d);
 
-                    if (useVision) {
-                        addVisionMeasurement(convertedRobotPose, visionTimestampSeconds);
-                    }
+                            blehPublisher.set(convertedRobotPose);
+
+                    addVisionMeasurement(convertedRobotPose, visionTimestampSeconds);
 
                     this.llMegaTagPosePublisher.set(convertedRobotPose);
-                } catch (Exception ex) {
-                    DriverStation.reportWarning(
-                            "Failed to convert MegaTag Camera Pose to Robot Pose: " + ex.getMessage(),
-                            ex.getStackTrace());
-                }
-            }
         }
         // if (stablePose.isPresent())
         // {

@@ -39,6 +39,7 @@ import frc.robot.subsystems.Turret;
 import frc.robot.util.dashboard.TurretUtil;
 import frc.robot.util.dashboard.TurretUtil.TargetType;
 import frc.robot.Constants;
+import frc.robot.Constants.ShooterConstants;
 import frc.robot.Commands.GameCommands;
 import frc.robot.Commands.ShootFuelCommand;
 
@@ -117,7 +118,7 @@ public class RobotContainer {
 
     private SlewRateLimiter xLimiter = new SlewRateLimiter(2);
     private SlewRateLimiter yLimiter = new SlewRateLimiter(2);
-    private SlewRateLimiter rotLimiter = new SlewRateLimiter(Math.PI / 2);
+    private SlewRateLimiter rotLimiter = new SlewRateLimiter(Math.PI);
 
     private void configureBindings() {
 
@@ -140,15 +141,15 @@ public class RobotContainer {
                         hub.getY() - robotPose.getY()
                     );
                     return driveLookingAtHub
-                        .withVelocityX(xLimiter.calculate(-joystick.getLeftY() * MaxSpeed))
-                        .withVelocityY(yLimiter.calculate(-joystick.getLeftX() * MaxSpeed))
+                        .withVelocityX(-joystick.getLeftY() * MaxSpeed)
+                        .withVelocityY(-joystick.getLeftX() * MaxSpeed)
                         .withTargetDirection(angleToHub);
                 }
 
                 return drive
-                    .withVelocityX(xLimiter.calculate(-joystick.getLeftY() * MaxSpeed * speedScale))
-                    .withVelocityY(yLimiter.calculate(-joystick.getLeftX() * MaxSpeed * speedScale))
-                    .withRotationalRate(rotLimiter.calculate(-joystick.getRightX() * MaxAngularRate * speedScale));
+                    .withVelocityX(-joystick.getLeftY() * MaxSpeed * speedScale)
+                    .withVelocityY(-joystick.getLeftX() * MaxSpeed * speedScale)
+                    .withRotationalRate(-joystick.getRightX() * MaxAngularRate * speedScale);
             })
         );
 
@@ -187,6 +188,12 @@ public class RobotContainer {
             )
         );
 
+        RobotModeTriggers.test().whileTrue(Commands.runEnd(() -> {
+
+            shooter.setVelocity(joystick.getLeftTriggerAxis()  * ShooterConstants.kMaxSpeedRPS);
+
+        }, () -> shooter.stop()));
+
         // B: turret aim + shooter spinup (full shot readiness, no feeder)
         RobotModeTriggers.test().and(joystick.b()).whileTrue(
             gameCommands.aimAndShootCommand(TargetType.HUB)
@@ -200,17 +207,24 @@ public class RobotContainer {
             )
         );
 
+        joystick.rightBumper().whileTrue(intake.retractCommand(0.30));
+        joystick.rightTrigger().whileTrue(intake.extendCommand(0.30));
+
+        joystick.start().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+
         // Left bumper: intake (hold to run, release to stop)
-        joystick.leftBumper().whileTrue(intake.intakeCommand(1.0));
+        joystick.leftBumper().whileTrue(intake.intakeCommand(-5.0));
+
+        
 
         // Full climb sequence: align (odometry) → extend → climb
-        joystick.start().onTrue(
-            Commands.sequence(
-                AutoBuilder.pathfindToPose(Constants.Climber.kClimbAlignPose, Constants.Climber.kAlignPathConstraints),
-                climber.extendCommand(),
-                climber.climbCommand()
-            ).withName("Full Climb Sequence")
-        );
+        // joystick.start().onTrue(
+        //     Commands.sequence(
+        //         AutoBuilder.pathfindToPose(Constants.Climber.kClimbAlignPose, Constants.Climber.kAlignPathConstraints),
+        //         climber.extendCommand(),
+        //         climber.climbCommand()
+        //     ).withName("Full Climb Sequence")
+        // );
 
         // Manual overrides (hold back + POV for fine control)
         joystick.back().and(joystick.pov(0)).whileTrue(climber.upCommand(1));
@@ -224,7 +238,7 @@ public class RobotContainer {
         joystick.y().onTrue(
             Commands.runOnce(() -> {
                 // drivetrain.resetPose(kStartingPose);
-                drivetrain.seedFieldCentric();
+                turret.resetAngle();
             }, drivetrain)
         );
 
