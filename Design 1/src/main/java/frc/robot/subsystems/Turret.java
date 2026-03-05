@@ -146,9 +146,9 @@ public class Turret extends SubsystemBase {
 
     // Enforce angle limits in hardware so PID cannot drive outside the range
     config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-    config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = Constants.Turret.kMinAngleDegrees / 360.0;
+    config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = (Constants.Turret.kMinAngleDegrees + 180) / 360.0;
     config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-    config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = Constants.Turret.kMaxAngleDegrees / 360.0;
+    config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = (Constants.Turret.kMaxAngleDegrees + 180) / 360.0;
 
     // Apply configuration
     motor.getConfigurator().apply(config);
@@ -186,7 +186,7 @@ public class Turret extends SubsystemBase {
 
   public void resetAngle()
   {
-    this.motor.setPosition(Degrees.of(180));
+    this.motor.setPosition(Constants.Turret.kOriginAngle);
   }
 
   /**
@@ -321,7 +321,7 @@ public class Turret extends SubsystemBase {
    * @param acceleration The acceleration in rad/s²
    */
   public void setAngle(double angleDegrees, double acceleration) {
-    // Clamp to allowed range before sending to motor
+    // 
     angleDegrees = Math.max(Constants.Turret.kMinAngleDegrees, Math.min(Constants.Turret.kMaxAngleDegrees, angleDegrees));
 
     // Track target for telemetry (keep desired angle so getErrorDegrees() reflects true misalignment)
@@ -330,7 +330,7 @@ public class Turret extends SubsystemBase {
 
     if (!Constants.Turret.kTurretEnabled) {
       // Hold at minimum angle (closest to forward) when turret is disabled
-      motor.setControl(positionRequest.withPosition(Constants.Turret.kMinAngleDegrees / 360.0));
+      motor.setControl(positionRequest.withPosition(Constants.Turret.kOriginAngle));
       return;
     }
 
@@ -360,7 +360,7 @@ public class Turret extends SubsystemBase {
     this.targetAngleDegrees = Units.rotationsToDegrees(getPosition());
 
     if (!Constants.Turret.kTurretEnabled) {
-      motor.setControl(positionRequest.withPosition(Constants.Turret.kMinAngleDegrees / 360.0));
+      motor.setControl(positionRequest.withPosition(Constants.Turret.kOriginAngle));
       return;
     }
 
@@ -380,7 +380,7 @@ public class Turret extends SubsystemBase {
     this.targetVelocityDegPerSec = 0;
 
     if (!Constants.Turret.kTurretEnabled) {
-      motor.setControl(positionRequest.withPosition(Constants.Turret.kMinAngleDegrees / 360.0));
+      motor.setControl(positionRequest.withPosition(Constants.Turret.kOriginAngle));
       return;
     }
 
@@ -506,22 +506,4 @@ public class Turret extends SubsystemBase {
       setVelocity(0);
     }
   }
-  /**
-   * Rezero the turret by re-applying the CANcoder magnet offset.
-   * FusedCANcoder keeps the TalonFX synced automatically, so this just
-   * reconfirms the offset in case it drifted after a hot restart.
-   */
-  private void rezero() {
-    CANcoderConfiguration cancoderConfig = new CANcoderConfiguration();
-    cancoderConfig.MagnetSensor.MagnetOffset = Constants.Turret.kEncoderOffset;
-    // m_cancoder.getConfigurator().apply(cancoderConfig);
-  }
-
-  /**
-   * Command to rezero the turret encoder.
-   */
-  public Command RezeroCommand() {
-    return runOnce(() -> rezero());
-  }
-
 }

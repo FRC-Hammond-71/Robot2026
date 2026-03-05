@@ -1,5 +1,8 @@
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.Radians;
+
 import com.pathplanner.lib.path.PathConstraints;
 
 import edu.wpi.first.math.Matrix;
@@ -13,6 +16,7 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Angle;
 
 public class Constants {
 
@@ -54,13 +58,14 @@ public class Constants {
         // Turret mechanical limits (degrees, relative to robot forward)
         public static final double kMinAngleDegrees = -90;
         public static final double kMaxAngleDegrees = 90;
+        public static final Angle kOriginAngle = Degrees.of(180);
 
         // Shooting range limits (meters)
         public static final double kMinShootingDistance = 1.0;
         public static final double kMaxShootingDistance = 5.5;
 
         // Motor and control constants
-        public static final double kGearRatio = (48 / 14) * (120 / 35); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
+        public static final double kGearRatio = (48.0 / 14.0) * (120.0 / 35.0); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
         public static final double kKP = 1; // Proportional gain (dimensionless)
         public static final double kKI = 0; // Integral gain (dimensionless)
         public static final double kKD = 0.1; // Derivative gain (dimensionless)
