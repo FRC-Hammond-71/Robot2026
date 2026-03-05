@@ -29,7 +29,7 @@ public class Constants {
                 Units.inchesToMeters(19.195)),  // TODO: Verify that this is from the ground.
             new Rotation3d(
                 Units.degreesToRadians(0),      // Roll: 0 degrees
-                Units.degreesToRadians(58.19),  // Pitch
+                Units.degreesToRadians(-45.0),  // Pitch: negative = nose up (WPILib NWU convention)
                 Units.degreesToRadians(0)       // Yaw: degrees
             ))
         ;

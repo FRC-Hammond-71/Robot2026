@@ -22,9 +22,11 @@ public class LimelightOnTurretUtils {
         );
 
         // Fixed offset of camera from turret pivot, in the turret's local frame.
+        // Includes camera pitch (kLimelightOffsetFromTurretOffset.getRotation()) so that
+        // the height of the camera correctly projects into X,Y when inverting the transform.
         Transform3d turretToCamera = new Transform3d(
             Constants.Vision.kLimelightOffsetFromTurretOffset.getTranslation(),
-            new Rotation3d()
+            Constants.Vision.kLimelightOffsetFromTurretOffset.getRotation()
         );
 
         // plus() computes: translation = kTurretOffset + turretRotation.apply(kCameraOffset)
