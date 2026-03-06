@@ -25,7 +25,7 @@ public class GameCommands {
     private static final double kTurretRangeCenterDeg = 135.0;
 
     // Turret must be within this tolerance (degrees) before the shooter fires.
-    private static final double kTurretAlignToleranceDeg = 2.0;
+    private static final double kTurretAlignToleranceDeg = 4.0;
 
     private final Shooter shooter;
     private final Turret turret;
@@ -44,7 +44,7 @@ public class GameCommands {
         this.drivetrain = drivetrain;
         this.xboxController = xboxController;
 
-        rotateInPlaceRequest.HeadingController.setPID(5, 0, 0);
+        rotateInPlaceRequest.HeadingController.setPID(2, 0, 0.1);
         rotateInPlaceRequest.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
     }
 

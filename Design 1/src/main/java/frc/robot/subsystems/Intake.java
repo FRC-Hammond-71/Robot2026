@@ -56,6 +56,11 @@ public class Intake extends SubsystemBase {
             stopExtension();
             isExtensionMoving = false;
         }
+
+        // Keep intake motor running while extended to hold game pieces
+        if (isExtended && !isExtensionMoving) {
+            intake(Constants.Intake.kHoldSpeed);
+        }
     }
 
     // --- Intake shaft (KrakenX60) ---
@@ -109,7 +114,9 @@ public class Intake extends SubsystemBase {
 
     public void stopExtension() {
         m_extensionMotor.set(0);
-        stop();
+        if (!isExtended) {
+            stop();
+        }
     }
 
     public double getExtensionPosition() {

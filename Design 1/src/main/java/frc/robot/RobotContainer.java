@@ -85,7 +85,7 @@ public class RobotContainer {
 			turret.getPositionSignal(),
 			TunerConstants.DrivetrainConstants,
 			TunerConstants.FrontLeft, TunerConstants.FrontRight, TunerConstants.BackLeft, TunerConstants.BackRight);
-	private final SendableChooser<Command> autoChooser;
+	// private final SendableChooser<Command> autoChooser;
 	private final SendableChooser<Pose2d> startingPoseChooser = new SendableChooser<>();
 	private final GameCommands gameCommands;
 
@@ -96,8 +96,8 @@ public class RobotContainer {
 		gameCommands = new GameCommands(shooter, turret, drivetrain, spindexer, joystick);
 		gameCommands.registerNamedCommands(); // Registers ShootAtHub, PassLeft, PassRight
 		registerNamedCommands(); // Registers fine-grained subsystem named commands
-		autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()`
-		SmartDashboard.putData("Auto Mode", autoChooser);
+		// autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()`
+		// SmartDashboard.putData("Auto Mode", autoChooser);
 		configureBindings();
 
 		startingPoseChooser.setDefaultOption("Middle", kMiddleStart);

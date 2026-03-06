@@ -27,12 +27,12 @@ public class Constants {
 
         public static final Transform3d kLimelightPosition = new Transform3d(
             new Translation3d(
+                Units.inchesToMeters(-11.919), 
                 Units.inchesToMeters(6.715), 
-                Units.inchesToMeters(11.919), 
-                Units.inchesToMeters(19.195)),  // TODO: Verify that this is from the ground.
+                Units.inchesToMeters(18.0)),  // TODO: Verify that this is from the ground.
             new Rotation3d(
                 Units.degreesToRadians(0),      // Roll: 0 degrees
-                Units.degreesToRadians(-45.0),  // Pitch: negative = nose up (WPILib NWU convention)
+                Units.degreesToRadians(-30.0),  // Pitch: negative = nose up (WPILib NWU convention)
                 Units.degreesToRadians(0)       // Yaw: degrees
             ))
         ;
@@ -51,8 +51,8 @@ public class Constants {
         // public static final int kThroughboreCanID = 58;
         // public static final double kEncoderOffset = 0.0;  // TODO: calibrate so 0.0 = forward (rotations)
 
-        public static final double kTurretOffsetX  = Units.inchesToMeters(6.715); // X offset (forward +X, backward -X) from robot center to turret (meters) 
-        public static final double kTurretOffsetY = Units.inchesToMeters(5.282); // Y offset (left +Y, right -Y) from robot center to turret (meters)
+        public static final double kTurretOffsetX  = Units.inchesToMeters(-6.715); // X offset (forward +X, backward -X) from robot center to turret (meters) 
+        public static final double kTurretOffsetY = Units.inchesToMeters(6); // Y offset (left +Y, right -Y) from robot center to turret (meters)
         public static final double kTurretOffsetZ = Units.inchesToMeters(14.150); // Z offset (up +Z, down -Z) from robot center to turret (meters)
         public static final double kTurretRezeroAngleDegrees = 0.0; // Rezero position in degrees
 
@@ -69,11 +69,11 @@ public class Constants {
 
         // Motor and control constants
         public static final double kGearRatio = (48.0 / 14.0) * (120.0 / 35.0); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
-        public static final double kKP = 20; // Proportional gain (dimensionless)
-        public static final double kKI = 0; // Integral gain (dimensionless)
-        public static final double kKD = 0.1; // Derivative gain (dimensionless)
-        public static final double kKS = 2; // Static friction feedforward (volts)
-        public static final double kKV = 1; // Velocity feedforward (volt-seconds per radian)
+        public static final double kKP = 25; // Proportional gain (dimensionless)
+        public static final double kKI = 0.2; // Integral gain (dimensionless)
+        public static final double kKD = 0.8; // Derivative gain (dimensionless)
+        public static final double kKS = 3; // Static friction feedforward (volts)
+        public static final double kKV = 2; // Velocity feedforward (volt-seconds per radian)
         public static final double kKA = 0; // Acceleration feedforward (volt-seconds² per radian)
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
         public static final double kMaxVelocity = 4; // Maximum velocity (rad/s)
@@ -115,8 +115,9 @@ public class Constants {
         // 14t driving 48t gear
         public static final double kExtensionGearRatio = 48.0 / 14.0; // motor rotations per output rotation
 
-        public static final double kStatorCurrentLimit = 40.0;
+        public static final double kStatorCurrentLimit = 35.0;
         public static final int kExtensionCurrentLimit = 40;
+        public static final double kHoldSpeed = 0.75; // duty cycle to hold game pieces while extended
     }
 
     public static final class Drivetrain {
