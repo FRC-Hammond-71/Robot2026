@@ -12,8 +12,8 @@ import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-
-import frc.robot.Constants.ShooterConstants;
+import frc.robot.Constants;
+import frc.robot.generated.FieldConstants;
 
 public class Shooter extends SubsystemBase {
 
@@ -31,10 +31,10 @@ public class Shooter extends SubsystemBase {
         cfgA.CurrentLimits.StatorCurrentLimit = 40;
         cfgA.CurrentLimits.StatorCurrentLimitEnable = true;
         Slot0Configs pid = cfgA.Slot0;
-        pid.kP = ShooterConstants.kP;
-        pid.kI = ShooterConstants.kI;
-        pid.kD = ShooterConstants.kD;
-        pid.kV = ShooterConstants.kV;
+        pid.kP = Constants.Shooter.kP;
+        pid.kI = Constants.Shooter.kI;
+        pid.kD = Constants.Shooter.kD;
+        pid.kV = Constants.Shooter.kV;
         m_motorA.getConfigurator().apply(cfgA);
 
         // Motor B: same PID, NO hardware inversion — handled in software
@@ -42,17 +42,17 @@ public class Shooter extends SubsystemBase {
         cfgB.CurrentLimits.StatorCurrentLimit = 40;
         cfgB.CurrentLimits.StatorCurrentLimitEnable = true;
         Slot0Configs pidB = cfgB.Slot0;
-        pidB.kP = ShooterConstants.kP;
-        pidB.kI = ShooterConstants.kI;
-        pidB.kD = ShooterConstants.kD;
-        pidB.kV = ShooterConstants.kV;
+        pidB.kP = Constants.Shooter.kP;
+        pidB.kI = Constants.Shooter.kI;
+        pidB.kD = Constants.Shooter.kD;
+        pidB.kV = Constants.Shooter.kV;
         m_motorB.getConfigurator().apply(cfgB);
     }
 
     // --- Velocity control ---
     public void setVelocity(double rps) {
         
-        double clamped = rps == 0 ? 0 : Math.max(ShooterConstants.kMinSpeedRPS, Math.min(ShooterConstants.kMaxSpeedRPS, rps)); 
+        double clamped = rps == 0 ? 0 : Math.max(Constants.Shooter.kMinSpeedRPS, Math.min(Constants.Shooter.kMaxSpeedRPS, rps)); 
 
         m_motorA.setControl(m_velocityRequest.withVelocity(-clamped));
         m_motorB.setControl(m_velocityRequest.withVelocity(clamped)); // software inversion
@@ -65,8 +65,8 @@ public class Shooter extends SubsystemBase {
 
     // --- Ready check ---
     public boolean isAtSpeed(double targetRPS) {
-        return Math.abs(m_velA.getValueAsDouble() + targetRPS) <= ShooterConstants.kSpeedToleranceRPS
-            && Math.abs(m_velB.getValueAsDouble() - targetRPS) <= ShooterConstants.kSpeedToleranceRPS;
+        return Math.abs(m_velA.getValueAsDouble() + targetRPS) <= Constants.Shooter.kSpeedToleranceRPS
+            && Math.abs(m_velB.getValueAsDouble() - targetRPS) <= Constants.Shooter.kSpeedToleranceRPS;
     }
 
     /**
@@ -79,10 +79,10 @@ public class Shooter extends SubsystemBase {
      * Requires tuning of kHeightDeltaMeters, kWheelDiameterMeters, kSlipFactor.
      */
     public double calculateTargetRPS(double distanceMeters) {
-        double angle = ShooterConstants.kLaunchAngleRad;
-        double h     = ShooterConstants.kHeightDeltaMeters;
+        double angle = Constants.Shooter.kLaunchAngleRad;
+        double h     = Constants.Shooter.kHeightDeltaMeters;
         double d     = distanceMeters;
-        double g     = ShooterConstants.kG;
+        double g     = Constants.Shooter.kG;
 
         double numerator   = g * d * d;
         double denominator = Math.pow(Math.cos(angle), 2)
@@ -91,12 +91,12 @@ public class Shooter extends SubsystemBase {
         // Guard: geometry unsolvable (target too close or below launcher plane)
         if (denominator <= 0) {
             SmartDashboard.putBoolean("Shooter/PhysicsValid", false);
-            return ShooterConstants.kMinSpeedRPS;
+            return Constants.Shooter.kMinSpeedRPS;
         }
 
         double exitVelocity    = Math.sqrt(numerator / denominator);
-        double adjustedVelocity = exitVelocity / ShooterConstants.kSlipFactor;
-        double targetRPS       = adjustedVelocity / (Math.PI * ShooterConstants.kWheelDiameterMeters);
+        double adjustedVelocity = exitVelocity / Constants.Shooter.kSlipFactor;
+        double targetRPS       = adjustedVelocity / (Math.PI * Constants.Shooter.kWheelDiameterMeters);
 
         SmartDashboard.putBoolean("Shooter/PhysicsValid",   true);
         SmartDashboard.putNumber("Shooter/ExitVelocity_ms", exitVelocity);
@@ -106,7 +106,7 @@ public class Shooter extends SubsystemBase {
 
     // --- Distance from robot pose to hub center ---
     public double calculateDistance(Translation2d robotTranslation) {
-        return robotTranslation.getDistance(ShooterConstants.kHubPosition);
+        return robotTranslation.getDistance(FieldConstants.getAllianceHub().toTranslation2d());
     }
 
     @Override

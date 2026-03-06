@@ -30,10 +30,10 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
@@ -76,9 +76,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private StructPublisher<Pose2d> llMegaTagPosePublisher = NetworkTableInstance.getDefault()
             .getStructTopic("ll_MegaTagPose", Pose2d.struct).publish();
 
-            private StructPublisher<Pose2d> blehPublisher = NetworkTableInstance.getDefault()
+    private StructPublisher<Pose2d> blehPublisher = NetworkTableInstance.getDefault()
             .getStructTopic("ll_Bruh", Pose2d.struct).publish();
-
 
     // private StructPublisher<Pose2d> llStablePosePublisher =
     // NetworkTableInstance.getDefault()
@@ -94,15 +93,17 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
     private final SwerveRequest.SysIdSwerveRotation m_rotationCharacterization = new SwerveRequest.SysIdSwerveRotation();
 
-        /* SysId routine for characterizing translation. This is used to find PID gains for the drive motors. */
+    /*
+     * SysId routine for characterizing translation. This is used to find PID gains
+     * for the drive motors.
+     */
     private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
             new SysIdRoutine.Config(
-                null,        // Use default ramp rate (1 V/s)
+                    null, // Use default ramp rate (1 V/s)
                     Volts.of(4), // Reduce dynamic step voltage to 4 V to prevent brownout
-                null,        // Use default timeout (10 s)
+                    null, // Use default timeout (10 s)
                     // Log state with SignalLogger class
-                state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())
-            ),
+                    state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())),
             new SysIdRoutine.Mechanism(
                     output -> setControl(m_translationCharacterization.withVolts(output)),
                     null,
@@ -166,15 +167,15 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @param modules             Constants for each specific module
      */
     public CommandSwerveDrivetrain(
-        StatusSignal<Angle> turretPositionSignal,
-        SwerveDrivetrainConstants drivetrainConstants,
-        SwerveModuleConstants<?, ?, ?>... modules) {
+            StatusSignal<Angle> turretPositionSignal,
+            SwerveDrivetrainConstants drivetrainConstants,
+            SwerveModuleConstants<?, ?, ?>... modules) {
 
         super(drivetrainConstants, modules);
 
         m_turretPositionSignal = turretPositionSignal;
         m_bufferedTurretAngle = new BufferedStatusSignal<Angle>(turretPositionSignal, TimestampSource.System, 20, 2000);
-        
+
         if (Utils.isSimulation()) {
             startSimThread();
         }
@@ -182,8 +183,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public CommandSwerveDrivetrain(
-        SwerveDrivetrainConstants drivetrainConstants,
-        SwerveModuleConstants<?, ?, ?>... modules) {
+            SwerveDrivetrainConstants drivetrainConstants,
+            SwerveModuleConstants<?, ?, ?>... modules) {
 
         super(drivetrainConstants, modules);
         if (Utils.isSimulation()) {
@@ -194,8 +195,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     public void updateOdometry() {
         Limelight limelight = Limelight.useDevice("limelight");
-
-        boolean useVision = SmartDashboard.getBoolean("Drivetrain/useVision", true);
 
         Optional<Pose2d> rawResult = limelight.getRawEstimatedPose();
         Optional<Pose2d> megaTagResult = limelight.getMegaTagEstimatedPose(2); // require at least 2 tags
@@ -209,24 +208,31 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             this.llRawPosePublisher.set(rawResult.get());
         }
         if (megaTagResult.isPresent() && !megaTagResult.get().equals(Pose2d.kZero)) {
-            
-            this.llMegaTagPosePublisher.set(megaTagResult.get());
 
+            var res = megaTagResult.get();
 
-                    double visionTimestampSeconds = Timer.getFPGATimestamp() - limelight.getLatencyInSeconds();
+            // Don't use the ll rotation, there's issues and pigeon is more accur.
 
-                    double turretRotations = m_bufferedTurretAngle.getValueAt(visionTimestampSeconds,
-                            TimestampSource.System);
-                    Rotation3d turretRotation3d = new Rotation3d(0.0, 0.0, turretRotations * 2.0 * Math.PI);
+            this.llMegaTagPosePublisher.set(res);
 
-                    Pose2d convertedRobotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(megaTagResult.get(),
-                            turretRotation3d);
+            double visionTimestampSeconds = Timer.getFPGATimestamp() - limelight.getLatencyInSeconds();
 
-                            blehPublisher.set(convertedRobotPose);
+            double turretRotations = m_bufferedTurretAngle.getValueAt(visionTimestampSeconds,
+                    TimestampSource.System);
+            Rotation3d turretRotation3d = new Rotation3d(0.0, 0.0, turretRotations * 2.0 * Math.PI);
 
-                    addVisionMeasurement(convertedRobotPose, visionTimestampSeconds);
+            // Use Pigeon heading instead of Limelight rotation (more consistent)
+            Rotation2d pigeonHeading = Rotation2d.fromDegrees(getPigeon2().getYaw().getValueAsDouble());
+            Pose2d convertedRobotPose = new Pose2d(
+                LimelightOnTurretUtils.getRobotPoseFromCameraPose(res, turretRotation3d).getTranslation(),
+                pigeonHeading
+            );
 
-                    this.llMegaTagPosePublisher.set(convertedRobotPose);
+            blehPublisher.set(convertedRobotPose);
+
+            addVisionMeasurement(convertedRobotPose, visionTimestampSeconds);
+
+            this.llMegaTagPosePublisher.set(convertedRobotPose);
         }
         // if (stablePose.isPresent())
         // {
@@ -274,7 +280,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     };
 
     /**
-     * Returns the robot's current velocity in field-relative coordinates (x forward, y left).
+     * Returns the robot's current velocity in field-relative coordinates (x
+     * forward, y left).
      */
     public ChassisSpeeds getFieldRelativeSpeeds() {
         ChassisSpeeds robotSpeeds = getState().Speeds;
@@ -408,7 +415,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
          * occurs during testing.
          */
 
-        LimelightHelpers.getBotPose2d_wpiBlue("limelight");
+        // LimelightHelpers.getBotPose2d_wpiBlue("limelight");
+
+        SmartDashboard.putBoolean("Pigeon Connected", getPigeon2().isConnected());
+
+        SmartDashboard.putNumber("CommandSwerveDrivetrain/Pigeon/Heading",
+                getPigeon2().getYaw(true).getValue().in(Degrees));
+        SmartDashboard.putNumber("CommandSwerveDrivetrain/Fused/Heading", getState().Pose.getRotation().getDegrees());
 
         if (m_bufferedTurretAngle != null)
             m_bufferedTurretAngle.periodic();

@@ -25,13 +25,13 @@ public class Spindexer extends SubsystemBase
     }
 
     public void clockwise(double speed) {
-        motor.set(speed);
-        kicker.set(-speed);
+        motor.set(-speed);
+        kicker.set(speed);
     }
 
     public void counterclockwise(double speed) {
-        motor.set(-speed);
-        kicker.set(speed);
+        motor.set(speed);
+        kicker.set(-speed);
     }
 
     public void stop() {

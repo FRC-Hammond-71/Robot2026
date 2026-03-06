@@ -39,254 +39,252 @@ import frc.robot.subsystems.Turret;
 import frc.robot.util.dashboard.TurretUtil;
 import frc.robot.util.dashboard.TurretUtil.TargetType;
 import frc.robot.Constants;
-import frc.robot.Constants.ShooterConstants;
 import frc.robot.Commands.GameCommands;
+import frc.robot.Commands.ShooterTuningCommand;
+import frc.robot.Limelight.LimelightHelpers;
 import frc.robot.Commands.ShootFuelCommand;
 
 public class RobotContainer {
-    
-    //#region Initialization
-    private double MaxSpeed = 1 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-    private double MaxAngularRate = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
-    Optional<Alliance> ally = DriverStation.getAlliance();
-    public double x;
-    public double y; 
-    public double z;
-    private final Intake intake = new Intake();
-    private final Shooter shooter = new Shooter();
-    private final Climber climber = new Climber();
-    private final Spindexer spindexer = new Spindexer();
-    private final Turret turret = new Turret();
-    
-    /* Setting up bindings for neces]\[
-     sary control of the swerve drive platform */
-    private static final Pose2d kStartingPose = new Pose2d(8.774, 4.026, Rotation2d.fromDegrees(0));
-    private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
-    private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
-    private final SwerveRequest.FieldCentricFacingAngle driveLookingAtHub = new SwerveRequest.FieldCentricFacingAngle()
-            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1)
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
-    private final Telemetry logger = new Telemetry(MaxSpeed);
-    private final CommandXboxController joystick = new CommandXboxController(0);
-    public final CommandSwerveDrivetrain drivetrain = new CommandSwerveDrivetrain(
-        turret.getPositionSignal(),
-        TunerConstants.DrivetrainConstants,
-        TunerConstants.FrontLeft, TunerConstants.FrontRight, TunerConstants.BackLeft, TunerConstants.BackRight
-    );
-    private final SendableChooser<Command> autoChooser;
-    private final GameCommands gameCommands;
 
+	// #region Initialization
+	private double MaxSpeed = 1.5;
+	// private double MaxSpeed = 1 *
+	// TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts
+	// desired top
+	// speed
+	private double MaxAngularRate = RotationsPerSecond.of(0.5).in(RadiansPerSecond); // 3/4 of a rotation per second max
+																						// angular velocity
+	Optional<Alliance> ally = DriverStation.getAlliance();
+	public double x;
+	public double y;
+	public double z;
+	private final Intake intake = new Intake();
+	private final Shooter shooter = new Shooter();
+	private final Climber climber = new Climber();
+	private final Spindexer spindexer = new Spindexer();
+	private final Turret turret = new Turret();
 
-    //#endregion
-    //#region Commands
+	/*
+	 * Setting up bindings for neces]\[
+	 * sary control of the swerve drive platform
+	 */
+	private static final Pose2d kStartingPose = new Pose2d(8.774, 4.026, Rotation2d.fromDegrees(0));
+	private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
+			.withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
+			.withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+	private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
+	private final SwerveRequest.FieldCentricFacingAngle driveLookingAtHub = new SwerveRequest.FieldCentricFacingAngle()
+			.withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1)
+			.withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+	private final Telemetry logger = new Telemetry(MaxSpeed);
+	private final CommandXboxController joystick = new CommandXboxController(0);
+	public final CommandSwerveDrivetrain drivetrain = new CommandSwerveDrivetrain(
+			turret.getPositionSignal(),
+			TunerConstants.DrivetrainConstants,
+			TunerConstants.FrontLeft, TunerConstants.FrontRight, TunerConstants.BackLeft, TunerConstants.BackRight);
+	private final SendableChooser<Command> autoChooser;
+	private final GameCommands gameCommands;
 
+	// #endregion
+	// #region Commands
 
-    public RobotContainer() {
-        gameCommands = new GameCommands(shooter, turret, drivetrain);
-        gameCommands.registerNamedCommands(); // Registers ShootAtHub, PassLeft, PassRight
-        registerNamedCommands(); // Registers fine-grained subsystem named commands
-        autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()`
-        configureBindings();
-        SmartDashboard.putData("Auto Mode", autoChooser);
-    }
+	public RobotContainer() {
+		gameCommands = new GameCommands(shooter, turret, drivetrain, spindexer);
+		gameCommands.registerNamedCommands(); // Registers ShootAtHub, PassLeft, PassRight
+		registerNamedCommands(); // Registers fine-grained subsystem named commands
+		autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()`
+		configureBindings();
+		SmartDashboard.putData("Auto Mode", autoChooser);
+	}
 
-    private void registerNamedCommands() {
-        // Intake
-        NamedCommands.registerCommand("Intake",      intake.intakeCommand(1.0));
-        NamedCommands.registerCommand("Score",       intake.scoreCommand(1.0));
+	private void registerNamedCommands() {
+		// Intake
+		NamedCommands.registerCommand("Intake", intake.intakeCommand(1.0));
+		NamedCommands.registerCommand("Score", intake.scoreCommand(1.0));
 
-        // Spindexer
-        NamedCommands.registerCommand("SpindexerIn",  spindexer.clockwiseCommand(1));
-        NamedCommands.registerCommand("SpindexerOut", spindexer.counterClockwiseCommand(1));
+		// Spindexer
+		NamedCommands.registerCommand("SpindexerIn", spindexer.clockwiseCommand(1));
+		NamedCommands.registerCommand("SpindexerOut", spindexer.counterClockwiseCommand(1));
 
-        // Shooter
-        NamedCommands.registerCommand("Shoot", new ShootFuelCommand(shooter, drivetrain));
+		// Shooter
+		NamedCommands.registerCommand("Shoot", new ShootFuelCommand(shooter, drivetrain));
 
-        // Turret
-        NamedCommands.registerCommand("AimHub",       turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.HUB));
-        NamedCommands.registerCommand("AimLeftPass",  turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.LEFT_PASS));
-        NamedCommands.registerCommand("AimRightPass", turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.RIGHT_PASS));
-        NamedCommands.registerCommand("TurretForward", turret.moveToAngleCommand(0));
-        NamedCommands.registerCommand("StopTurret",    turret.stopCommand());
+		// Turret
+		NamedCommands.registerCommand("AimHub",
+				turret.autoAimCommand(() -> drivetrain.getState().Pose, TargetType.HUB));
+		NamedCommands.registerCommand("AimLeftPass",
+				turret.autoAimCommand(() -> drivetrain.getState().Pose, TargetType.LEFT_PASS));
+		NamedCommands.registerCommand("AimRightPass",
+				turret.autoAimCommand(() -> drivetrain.getState().Pose, TargetType.RIGHT_PASS));
+		NamedCommands.registerCommand("StopTurret", turret.stopCommand());
 
-        // Climber
-        NamedCommands.registerCommand("ExtendClimber", climber.extendCommand());
-        NamedCommands.registerCommand("Climb",         climber.climbCommand());
-    }
+		// Climber
+		NamedCommands.registerCommand("ExtendClimber", climber.extendCommand());
+		NamedCommands.registerCommand("Climb", climber.climbCommand());
+	}
 
-    private SlewRateLimiter xLimiter = new SlewRateLimiter(2);
-    private SlewRateLimiter yLimiter = new SlewRateLimiter(2);
-    private SlewRateLimiter rotLimiter = new SlewRateLimiter(Math.PI);
+	private SlewRateLimiter xLimiter = new SlewRateLimiter(2);
+	private SlewRateLimiter yLimiter = new SlewRateLimiter(2);
+	private SlewRateLimiter rotLimiter = new SlewRateLimiter(Math.PI);
 
-    private void configureBindings() {
+	private void configureBindings() {
 
-        driveLookingAtHub.HeadingController.setPID(5, 0, 0);
-        driveLookingAtHub.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
+		driveLookingAtHub.HeadingController.setPID(8, 0, 0);
+		driveLookingAtHub.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
-        // Note that X is defined as forward according to WPILib convention,
-        // and Y is defined as to the left according to WPILib convention.
-        drivetrain.setDefaultCommand(
-            drivetrain.applyRequest(() -> {
-                // Reduce speed to 30% in test mode for safety
-                double speedScale = DriverStation.isTest() ? 0.3 : 1.0;
+		// Note that X is defined as forward according to WPILib convention,
+		// and Y is defined as to the left according to WPILib convention.
+		drivetrain.setDefaultCommand(
+				drivetrain.applyRequest(() -> {
+					// Reduce speed to 30% in test mode for safety
+					double speedScale = DriverStation.isTest() ? 0.3 : 1.0;
 
-                // B: face hub — teleop only (B is used for aim+shoot in test mode)
-                if (!DriverStation.isTest() && joystick.b().getAsBoolean()) {
-                    Pose2d robotPose = drivetrain.getState().Pose;
-                    Translation3d hub = FieldConstants.getAllianceHub();
-                    Rotation2d angleToHub = new Rotation2d(
-                        hub.getX() - robotPose.getX(),
-                        hub.getY() - robotPose.getY()
-                    );
-                    return driveLookingAtHub
-                        .withVelocityX(-joystick.getLeftY() * MaxSpeed)
-                        .withVelocityY(-joystick.getLeftX() * MaxSpeed)
-                        .withTargetDirection(angleToHub);
-                }
+					// B: face hub — teleop only (B is used for aim+shoot in test mode)
+					// if (DriverStation.isTest() && joystick.b().getAsBoolean()) {
+					// Pose2d robotPose = drivetrain.getState().Pose;
+					// Translation3d hub = FieldConstants.getAllianceHub();
+					// Rotation2d angleToHub = new Rotation2d(
+					// hub.getX() - robotPose.getX(),
+					// hub.getY() - robotPose.getY());
+					// return driveLookingAtHub
+					// .withVelocityX(-joystick.getLeftY() * MaxSpeed)
+					// .withVelocityY(-joystick.getLeftX() * MaxSpeed)
+					// .withTargetDirection(angleToHub);
+					// } else {
+					// return drive
+					// .withVelocityX(-joystick.getLeftY() * MaxSpeed * speedScale)
+					// .withVelocityY(-joystick.getLeftX() * MaxSpeed * speedScale)
+					// .withRotationalRate(-joystick.getRightX() * MaxAngularRate * speedScale);
+					// }
 
-                return drive
-                    .withVelocityX(-joystick.getLeftY() * MaxSpeed * speedScale)
-                    .withVelocityY(-joystick.getLeftX() * MaxSpeed * speedScale)
-                    .withRotationalRate(-joystick.getRightX() * MaxAngularRate * speedScale);
-            })
-        );
+					return drive
+						.withVelocityX(-joystick.getLeftY() * MaxSpeed * speedScale)
+						.withVelocityY(-joystick.getLeftX() * MaxSpeed * speedScale)
+						.withRotationalRate(-joystick.getRightX() * MaxAngularRate * speedScale);
 
-        // Idle while the robot is disabled. This ensures the configured
-        // neutral mode is applied to the drive motors while disabled.
-        final var idle = new SwerveRequest.Idle();
-        RobotModeTriggers.disabled().whileTrue(
-            drivetrain.applyRequest(() -> idle).ignoringDisable(true)
-        );
+				}));
 
-        // joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
-        // joystick.b().whileTrue(drivetrain.applyRequest(() ->
-        //     point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
-        // ));
-        
-        // turret.autoAimCommand(() -> drivetrain.getState().Pose, drivetrain::getFieldRelativeSpeeds, TargetType.HUB);
-        
-        // Turret continuously auto-aims at the hub during teleop (and test when idle).
-        turret.setDefaultCommand(
-            turret.autoAimCommand(
-                () -> drivetrain.getState().Pose,
-                drivetrain::getFieldRelativeSpeeds,
-                TargetType.HUB
-            )
-        );
+		// Idle while the robot is disabled. This ensures the configured
+		// neutral mode is applied to the drive motors while disabled.
+		final var idle = new SwerveRequest.Idle();
+		RobotModeTriggers.disabled().whileTrue(
+				drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
-        // All test commands run only while button is held; release = immediate stop.
-        // Drive is reduced to 30% speed automatically (see default command above).
+		// joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
+		// joystick.b().whileTrue(drivetrain.applyRequest(() ->
+		// point.withModuleDirection(new Rotation2d(-joystick.getLeftY(),
+		// -joystick.getLeftX()))
+		// ));
 
-        // A: turret auto-tracking with lead compensation (no shooter)
-        RobotModeTriggers.test().and(joystick.a()).whileTrue(
-            turret.autoAimCommand(
-                () -> drivetrain.getState().Pose,
-                drivetrain::getFieldRelativeSpeeds,
-                TargetType.HUB
-            )
-        );
+		// Turret continuously auto-aims at the hub during teleop only.
+		
+		// RobotModeTriggers.teleop().whileTrue(
+		// 		turret.autoAimCommand(
+		// 				() -> drivetrain.getState().Pose,
+		// 				TargetType.HUB));
 
-        RobotModeTriggers.test().whileTrue(Commands.runEnd(() -> {
+		RobotModeTriggers.teleop().and(joystick.a()).whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 
-            shooter.setVelocity(joystick.getLeftTriggerAxis()  * ShooterConstants.kMaxSpeedRPS);
+		joystick.start().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
-        }, () -> shooter.stop()));
+		// configureTestBindingsForShooterTuning();
+		configureTestBindingsForManualShootingAndTurret();
 
-        // B: turret aim + shooter spinup (full shot readiness, no feeder)
-        RobotModeTriggers.test().and(joystick.b()).whileTrue(
-            gameCommands.aimAndShootCommand(TargetType.HUB)
-        );
+		drivetrain.registerTelemetry(logger::telemeterize);
+		// SmartDashboard.putData("Auto Selection", autoChooser);
+	}
 
-        // X: rotate robot so the hub falls inside the turret's allowed range
-        RobotModeTriggers.test().and(joystick.x()).whileTrue(
-            gameCommands.rotateIntoRangeCommand(
-                TargetType.HUB,
-                () -> FieldConstants.getAllianceHub().toTranslation2d()
-            )
-        );
+	private void configureTestBindingsForManualShootingAndTurret() {
+		// A: turret auto-tracking (no shooter)
+		RobotModeTriggers.test().and(joystick.a()).whileTrue(
+				turret.autoAimCommand(
+						() -> drivetrain.getState().Pose,
+						TargetType.HUB));
 
-        joystick.rightBumper().whileTrue(intake.retractCommand(0.30));
-        joystick.rightTrigger().whileTrue(intake.extendCommand(0.30));
+		// Left trigger: manual shooter + spindexer control
+		RobotModeTriggers.test().whileTrue(Commands.runEnd(() -> {
 
-        joystick.start().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+			if (joystick.getLeftTriggerAxis() > 0.2) {
+				spindexer.clockwise(0.5);
+			} else {
+				spindexer.stop();
+			}
+			shooter.setVelocity(joystick.getLeftTriggerAxis() * Constants.Shooter.kMaxSpeedRPS);
 
-        // Left bumper: intake (hold to run, release to stop)
-        joystick.leftBumper().whileTrue(intake.intakeCommand(-5.0));
+		}, () -> {
+			shooter.stop();
+			spindexer.stop();
+		}));
 
-        
+		// B: turret aim + shooter spinup (full shot readiness, no feeder)
+		// RobotModeTriggers.test().and(joystick.b()).whileTrue(
+		// gameCommands.aimAndShootCommand(TargetType.HUB));
 
-        // Full climb sequence: align (odometry) → extend → climb
-        // joystick.start().onTrue(
-        //     Commands.sequence(
-        //         AutoBuilder.pathfindToPose(Constants.Climber.kClimbAlignPose, Constants.Climber.kAlignPathConstraints),
-        //         climber.extendCommand(),
-        //         climber.climbCommand()
-        //     ).withName("Full Climb Sequence")
-        // );
+		// X: rotate robot so the hub falls inside the turret's allowed range
+		RobotModeTriggers.test().and(joystick.x()).whileTrue(
+				gameCommands.rotateIntoRangeCommand(
+						TargetType.HUB,
+						() -> FieldConstants.getAllianceHub().toTranslation2d()));
 
-        // Manual overrides (hold back + POV for fine control)
-        joystick.back().and(joystick.pov(0)).whileTrue(climber.upCommand(1));
-        joystick.back().and(joystick.pov(180)).whileTrue(climber.downCommand(1));
+		// POV: manual turret angle control
+		RobotModeTriggers.test().and(joystick.pov(270)).whileTrue(Commands.run(() -> turret.setAngle(90), turret));
+		RobotModeTriggers.test().and(joystick.pov(180)).whileTrue(Commands.run(() -> turret.setAngle(180), turret));
+		RobotModeTriggers.test().and(joystick.pov(90)).whileTrue(Commands.run(() -> turret.setAngle(270), turret));
 
-        joystick.pov(90)
-        .whileTrue(spindexer.clockwiseCommand(1));
-        joystick.pov(270)
-        .whileTrue(spindexer.counterClockwiseCommand(1));
+		// Y: reset turret encoder
+		// joystick.y().onTrue(Commands.runOnce(() -> turret.resetAngle(), drivetrain));
 
-        joystick.y().onTrue(
-            Commands.runOnce(() -> {
-                // drivetrain.resetPose(kStartingPose);
-                turret.resetAngle();
-            }, drivetrain)
-        );
+		// Intake
+		joystick.rightBumper().whileTrue(intake.retractCommand(0.30));
+		joystick.rightTrigger().whileTrue(intake.extendCommand(0.30));
+		joystick.leftBumper().whileTrue(intake.intakeCommand(-5.0));
 
-        // // Run SysId routines when holding back/start and X/Y.
-        // // Note that each routine should be run exactly once in a single log.
-        // joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-        // joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-        // joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-        // joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+		// Climber manual overrides
+		// joystick.back().and(joystick.pov(0)).whileTrue(climber.upCommand(1));
+		// joystick.back().and(joystick.pov(180)).whileTrue(climber.downCommand(1));
+	}
 
-        drivetrain.registerTelemetry(logger::telemeterize);
-        SmartDashboard.putData("Auto Selection", autoChooser);
-    }
+	private void configureTestBindingsForShooterTuning() {
+		joystick.b().onTrue(new ShooterTuningCommand(
+				shooter,
+				spindexer,
+				RotationsPerSecond.of(Constants.Shooter.kMinSpeedRPS),
+				RotationsPerSecond.of(Constants.Shooter.kMaxSpeedRPS),
+				RotationsPerSecond.of(2.5),
+				() -> joystick.y().getAsBoolean(),
+				() -> joystick.a().getAsBoolean(),
+				() -> joystick.x().getAsBoolean()));
+	}
 
-    // public Command getAutonomousCommand() {p[]p[][]\
+	// dear claude, fix thiss code, 6 7
 
-        // // Simple drive forward auton
-        // final var idle = new SwerveRequest.Idle();
-        // return Commands.sequence(
-        //     // Reset our field centric heading to match the robot
-        //     // facing away from our alliance station wall (0 deg).
-        //     drivetrain.runOnce(() -> drivetrain.seedFieldCentric(Rotation2d.kZero)),
-        //     // Then slowly drive forward (away from us) for 5 seconds.
-        //     drivetrain.applyRequest(() ->
-        //         drive.withVelocityX(0.5)
-        //             .withVelocityY(0)
-        //             .withRotationalRate(0)
-        //     )
-        //     .withTimeout(5.0),
-        //     // Finally idle for the rest of auton
-        //     drivetrain.applyRequest(() -> idle)
-        // );
+	// public Command getAutonomousCommand() {p[]p[][]\
 
-        // return autoChooser.getSelected();
-    // }
+	// // Simple drive forward auton
+	// final var idle = new SwerveRequest.Idle();
+	// return Commands.sequence(
+	// // Reset our field centric heading to match the robot
+	// // facing away from our alliance station wall (0 deg).
+	// drivetrain.runOnce(() -> drivetrain.seedFieldCentric(Rotation2d.kZero)),
+	// // Then slowly drive forward (away from us) for 5 seconds.
+	// drivetrain.applyRequest(() ->
+	// drive.withVelocityX(0.5)
+	// .withVelocityY(0)
+	// .withRotationalRate(0)
+	// )
+	// .withTimeout(5.0),
+	// // Finally idle for the rest of auton
+	// drivetrain.applyRequest(() -> idle)
+	// );
 
+	// return autoChooser.getSelected();
+	// }
 
-    
-    public Command getAutonomousCommand() {
-        // This method loads the auto when it is called, however, it is recommended
-        // to first load your paths/autos when code starts, then return the
-        // pre-loaded auto/path
-        return autoChooser.getSelected();
-    }
-          
-
-
-
-
+	public Command getAutonomousCommand() {
+		// This method loads the auto when it is called, however, it is recommended
+		// to first load your paths/autos when code starts, then return the
+		// pre-loaded auto/path
+		return autoChooser.getSelected();
+	}
 
 }

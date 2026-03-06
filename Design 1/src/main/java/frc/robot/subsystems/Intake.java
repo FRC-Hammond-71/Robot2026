@@ -10,10 +10,12 @@ import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
+import frc.robot.util.CurrentDetection;
 
 public class Intake extends SubsystemBase {
 
@@ -22,6 +24,11 @@ public class Intake extends SubsystemBase {
 
     // NEO — linear extension (14t driving 48t)
     private final SparkMax m_extensionMotor = new SparkMax(Constants.Intake.kExtensionMotorCanID, MotorType.kBrushless);
+
+    // private CurrentDetection extension_current; //  extension_doDo should stop when doExtend and doRetract are running when overcurrent current detection is true.
+    private boolean extension_doExtend; // Should extend while extension_doDo
+    private boolean extension_doRetract; // Should retract while extension_doDo
+    private boolean extension_doDo;
 
     public Intake() {
         // KrakenX60 config
@@ -36,6 +43,13 @@ public class Intake extends SubsystemBase {
         extensionConfig.smartCurrentLimit(Constants.Intake.kExtensionCurrentLimit);
         extensionConfig.encoder.positionConversionFactor(1.0 / Constants.Intake.kExtensionGearRatio);
         m_extensionMotor.configure(extensionConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
+    }
+
+    @Override
+    public void periodic() {
+        
+        SmartDashboard.putNumber("Intake/Extension/Amperage", this.m_extensionMotor.getOutputCurrent());
+
     }
 
     // --- Intake shaft (KrakenX60) ---

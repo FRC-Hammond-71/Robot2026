@@ -13,12 +13,12 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.generated.FieldConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.Shooter;
+import frc.robot.subsystems.Spindexer;
 import frc.robot.subsystems.Turret;
 import frc.robot.util.dashboard.TurretUtil;
 
 public class GameCommands {
 
-    // Midpoint of turret's allowed range [90°, 180°].
     // Robot is rotated so the target lands here when rotating into range.
     private static final double kTurretRangeCenterDeg = 135.0;
 
@@ -27,15 +27,17 @@ public class GameCommands {
 
     private final Shooter shooter;
     private final Turret turret;
+    private final Spindexer spindexer;
     private final CommandSwerveDrivetrain drivetrain;
 
     private final SwerveRequest.FieldCentricFacingAngle rotateInPlaceRequest =
         new SwerveRequest.FieldCentricFacingAngle()
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
-    public GameCommands(Shooter shooter, Turret turret, CommandSwerveDrivetrain drivetrain) {
+    public GameCommands(Shooter shooter, Turret turret, CommandSwerveDrivetrain drivetrain, Spindexer spindexer) {
         this.shooter = shooter;
         this.turret = turret;
+        this.spindexer = spindexer;
         this.drivetrain = drivetrain;
 
         rotateInPlaceRequest.HeadingController.setPID(5, 0, 0);
@@ -75,11 +77,9 @@ public class GameCommands {
                 .withTargetDirection(goalHeading);
         })
         .until(() -> {
-            var pose   = drivetrain.getState().Pose;
-            var speeds = drivetrain.getFieldRelativeSpeeds();
-            TurretUtil.ShotSolution solution = TurretUtil.computeLeadShotSolution(
-                pose, speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, target);
-            return solution.isValid; // isValid already checks turret range + shooting distance
+            var pose = drivetrain.getState().Pose;
+            TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
+            return solution.isValid;
         })
         .withName("RotateIntoTurretRange-" + target);
     }
@@ -94,21 +94,20 @@ public class GameCommands {
             // Continuously track the target with the turret
             turret.autoAimCommand(
                 () -> drivetrain.getState().Pose,
-                drivetrain::getFieldRelativeSpeeds,
                 target
             ),
             // Wait for the turret to settle, then run the shooter at the lookup-table speed
             Commands.waitUntil(() -> Math.abs(turret.getErrorDegrees()) < kTurretAlignToleranceDeg)
                 .andThen(Commands.run(() -> {
-                    var pose   = drivetrain.getState().Pose;
-                    var speeds = drivetrain.getFieldRelativeSpeeds();
-                    TurretUtil.ShotSolution solution = TurretUtil.computeLeadShotSolution(
-                        pose, speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, target);
+                    var pose = drivetrain.getState().Pose;
+                    TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
                     if (solution.isValid) {
+                        spindexer.clockwise(0.5);
                         shooter.setVelocity(solution.shooterSpeedRPS);
+                        
                     }
                 }, shooter))
-                .finallyDo(__ -> shooter.stop())
+                .finallyDo(__ -> { shooter.stop(); spindexer.stop(); })
         ).withName("AimAndShoot-" + target);
     }
 

@@ -56,21 +56,21 @@ public class Constants {
         public static final Translation3d kTurretOffsetFromRobotCenter = new Translation3d(kTurretOffsetX, kTurretOffsetY, kTurretOffsetZ);
 
         // Turret mechanical limits (degrees, relative to robot forward)
-        public static final double kMinAngleDegrees = -90;
-        public static final double kMaxAngleDegrees = 90;
+        public static final double kMinAngleDegrees = 90;
+        public static final double kMaxAngleDegrees = 270;
         public static final Angle kOriginAngle = Degrees.of(180);
 
         // Shooting range limits (meters)
-        public static final double kMinShootingDistance = 1.0;
-        public static final double kMaxShootingDistance = 5.5;
+        public static final double kMinShootingDistance = 1.8288;
+        public static final double kMaxShootingDistance = 5.9436;
 
         // Motor and control constants
         public static final double kGearRatio = (48.0 / 14.0) * (120.0 / 35.0); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
-        public static final double kKP = 1; // Proportional gain (dimensionless)
+        public static final double kKP = 15; // Proportional gain (dimensionless)
         public static final double kKI = 0; // Integral gain (dimensionless)
         public static final double kKD = 0.1; // Derivative gain (dimensionless)
-        public static final double kKS = 0; // Static friction feedforward (volts)
-        public static final double kKV = 0; // Velocity feedforward (volt-seconds per radian)
+        public static final double kKS = 0.1; // Static friction feedforward (volts)
+        public static final double kKV = 0.1; // Velocity feedforward (volt-seconds per radian)
         public static final double kKA = 0; // Acceleration feedforward (volt-seconds² per radian)
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
         public static final double kMaxVelocity = 4; // Maximum velocity (rad/s)
@@ -83,7 +83,7 @@ public class Constants {
         public static final double kSupplyCurrentLimit = 40; // Supply current limit (amperes)
     }
 
-    public static final class ShooterConstants {
+    public static final class Shooter {
         // Hub field coordinate — confirm from AprilTagFieldLayout 2026 JSON
         public static final Translation2d kHubPosition = new Translation2d(8.774, 4.105);
     

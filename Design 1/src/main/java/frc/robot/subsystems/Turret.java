@@ -7,7 +7,6 @@ import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
@@ -15,11 +14,7 @@ import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.PositionVoltage;
-import com.ctre.phoenix6.controls.VelocityVoltage;
-import com.ctre.phoenix6.configs.CANcoderConfiguration;
-import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
-import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.epilogue.Logged;
@@ -39,7 +34,8 @@ import frc.robot.util.dashboard.TurretUtil;
 import java.util.function.Supplier;
 
 /**
- * Pivot subsystem using TalonFX with Krakenx60 motor
+ * Turret subsystem using TalonFX with Krakenx60 motor.
+ * All angles are in degrees relative to robot forward (0 = forward, + = left, - = right).
  */
 public class Turret extends SubsystemBase {
 
@@ -70,13 +66,9 @@ public class Turret extends SubsystemBase {
     kA // kA
   );
 
-  // WCP Throughbore CANcoder on output shaft
-  // private final CANcoder m_cancoder = new CANcoder(Constants.Turret.kThroughboreCanID);
-
   // Motor controller
   private final TalonFX motor;
   private final PositionVoltage positionRequest;
-  private final VelocityVoltage velocityRequest;
   private final StatusSignal<Angle> positionSignal;
   private final StatusSignal<AngularVelocity> velocitySignal;
   private final StatusSignal<Voltage> voltageSignal;
@@ -84,14 +76,13 @@ public class Turret extends SubsystemBase {
   private final StatusSignal<Temperature> temperatureSignal;
 
   // Target tracking for telemetry
-  private double targetAngleDegrees = 0.0;
-  private double targetVelocityDegPerSec = 0.0;
+  private double targetAngleDegrees = Constants.Turret.kOriginAngle.in(Degrees);
 
   // Simulation
   private final SingleJointedArmSim pivotSim;
 
   /**
-   * Creates a new Pivot Subsystem.
+   * Creates a new Turret Subsystem.
    */
   public Turret() {
     // Initialize motor controller
@@ -99,7 +90,6 @@ public class Turret extends SubsystemBase {
 
     // Create control requests
     positionRequest = new PositionVoltage(0).withSlot(0);
-    velocityRequest = new VelocityVoltage(0).withSlot(0);
 
     // get status signals
     positionSignal = motor.getPosition();
@@ -110,8 +100,13 @@ public class Turret extends SubsystemBase {
 
     TalonFXConfiguration config = new TalonFXConfiguration();
 
+    // config.ClosedLoopGeneral.Con
+
+    // config.ClosedLoopRamps.`/
+
     // Configure PID for slot 0
     Slot0Configs slot0 = config.Slot0;
+    // slot0.ClosedLoopErrorThreshold = 
     slot0.kP = kP;
     slot0.kI = kI;
     slot0.kD = kD;
@@ -131,24 +126,14 @@ public class Turret extends SubsystemBase {
       ? NeutralModeValue.Brake
       : NeutralModeValue.Coast;
 
-    // Configure WCP Throughbore CANcoder
-    // CANcoderConfiguration cancoderConfig = new CANcoderConfiguration();
-    // cancoderConfig.MagnetSensor.MagnetOffset = Constants.Turret.kEncoderOffset;
-    // m_cancoder.getConfigurator().apply(cancoderConfig);
-
-    // Fuse CANcoder as feedback source — TalonFX uses absolute position from CANcoder
-    // combined with internal encoder velocity for high-rate closed-loop
-    // config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
-    // config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
-    // config.Feedback.FeedbackRemoteSensorID = Constants.Turret.kThroughboreCanID;
     config.Feedback.RotorToSensorRatio = 1; // motor rotations per output (CANcoder) rotation
     config.Feedback.SensorToMechanismRatio = gearRatio;   // CANcoder is on the output shaft
 
     // Enforce angle limits in hardware so PID cannot drive outside the range
     config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-    config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = (Constants.Turret.kMinAngleDegrees + 180) / 360.0;
+    config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = Units.degreesToRotations(Constants.Turret.kMinAngleDegrees);
     config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-    config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = (Constants.Turret.kMaxAngleDegrees + 180) / 360.0;
+    config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = Units.degreesToRotations(Constants.Turret.kMaxAngleDegrees);
 
     // Apply configuration
     motor.getConfigurator().apply(config);
@@ -168,9 +153,6 @@ public class Turret extends SubsystemBase {
     this.resetAngle();
   }
 
-  /**
-   * Update simulation and telemetry.
-   */
   @Override
   public void periodic() {
     BaseStatusSignal.refreshAll(
@@ -181,7 +163,9 @@ public class Turret extends SubsystemBase {
       temperatureSignal
     );
 
-    SmartDashboard.putNumber("Turret Position", getAngle());
+    SmartDashboard.putNumber("Turret/CurrentAngle", getAngle());
+    SmartDashboard.putNumber("Turret/DesiredAngle", targetAngleDegrees);
+    SmartDashboard.putNumber("Turret/ErrorAngle", getErrorDegrees());
   }
 
   public void resetAngle()
@@ -189,20 +173,10 @@ public class Turret extends SubsystemBase {
     this.motor.setPosition(Constants.Turret.kOriginAngle);
   }
 
-  /**
-   * Update simulation.
-   */
   @Override
   public void simulationPeriodic() {
-    // Set input voltage from motor controller to simulation
-    // Note: This may need to be talonfx.getSimState().getMotorVoltage() as the input
-    //pivotSim.setInput(dcMotor.getVoltage(dcMotor.getTorque(pivotSim.getCurrentDrawAmps()), pivotSim.getVelocityRadPerSec()));
-    // pivotSim.setInput(getVoltage());
-    // Set input voltage from motor controller to simulation
-    // Use motor voltage for TalonFX simulation input
     pivotSim.setInput(motor.getSimState().getMotorVoltage());
 
-    // Update simulation by 20ms
     pivotSim.update(0.020);
     RoboRioSim.setVInVoltage(
       BatterySim.calculateDefaultBatteryLoadedVoltage(
@@ -229,25 +203,24 @@ public class Turret extends SubsystemBase {
   }
 
   /**
-   * Get the current position in Rotations.
+   * Get the current position in Rotations (raw motor value, includes origin offset).
    * @return Position in Rotations
    */
   @Logged(name = "Position/Rotations")
   public double getPosition() {
-    // Rotations
     return positionSignal.getValueAsDouble();
   }
 
-
+  /**
+   * Get the turret angle in degrees relative to robot forward.
+   * @return Angle in degrees (0 = forward, + = left, - = right)
+   */
   public double getAngle() {
     return positionSignal.getValue().in(Degrees);
-  } 
-
-
+  }
 
   /**
    * Get the current velocity in rotations per second.
-   * @return Velocity in rotations per second
    */
   @Logged(name = "Velocity")
   public double getVelocity() {
@@ -256,7 +229,6 @@ public class Turret extends SubsystemBase {
 
   /**
    * Get the current applied voltage.
-   * @return Applied voltage
    */
   @Logged(name = "Voltage")
   public double getVoltage() {
@@ -264,16 +236,14 @@ public class Turret extends SubsystemBase {
   }
 
   /**
-   * Get the current motor current.
-   * @return Motor current in amps
+   * Get the current motor current in amps.
    */
   public double getCurrent() {
     return statorCurrentSignal.getValueAsDouble();
   }
 
   /**
-   * Get the current motor temperature.
-   * @return Motor temperature in Celsius
+   * Get the current motor temperature in Celsius.
    */
   public double getTemperature() {
     return temperatureSignal.getValueAsDouble();
@@ -281,7 +251,6 @@ public class Turret extends SubsystemBase {
 
   /**
    * Get the target angle in degrees.
-   * @return Target angle in degrees
    */
   @Logged(name = "Target/AngleDegrees")
   public double getTargetAngleDegrees() {
@@ -289,221 +258,119 @@ public class Turret extends SubsystemBase {
   }
 
   /**
-   * Get the target velocity in degrees per second.
-   * @return Target velocity in degrees per second
-   */
-  @Logged(name = "Target/VelocityDegPerSec")
-  public double getTargetVelocityDegPerSec() {
-    return targetVelocityDegPerSec;
-  }
-
-  /**
    * Get the position error in degrees (target - current).
-   * @return Position error in degrees
    */
   @Logged(name = "Error/AngleDegrees")
   public double getErrorDegrees() {
-    double currentAngleDegrees = Units.rotationsToDegrees(getPosition());
-    return targetAngleDegrees - currentAngleDegrees;
+    return targetAngleDegrees - getAngle();
   }
 
   /**
-   * Set pivot angle.
-   * @param angleDegrees The target angle in degrees
+   * Set turret angle.
+   * @param angleDegrees The target angle in degrees (0 = forward)
    */
   public void setAngle(double angleDegrees) {
     setAngle(angleDegrees, 0);
   }
 
   /**
-   * Set pivot angle with acceleration.
-   * @param angleDegrees The target angle in degrees
+   * Set turret angle with acceleration.
+   * @param angleDegrees The target angle in degrees (0 = forward)
    * @param acceleration The acceleration in rad/s²
    */
   public void setAngle(double angleDegrees, double acceleration) {
-    // 
-    angleDegrees = Math.max(Constants.Turret.kMinAngleDegrees, Math.min(Constants.Turret.kMaxAngleDegrees, angleDegrees));
-
-    // Track target for telemetry (keep desired angle so getErrorDegrees() reflects true misalignment)
-    this.targetAngleDegrees = angleDegrees;
-    this.targetVelocityDegPerSec = 0;
+    // angleDegrees = Math.max(Constants.Turret.kMinAngleDegrees, Math.min(Constants.Turret.kMaxAngleDegrees, angleDegrees));
 
     if (!Constants.Turret.kTurretEnabled) {
-      // Hold at minimum angle (closest to forward) when turret is disabled
-      motor.setControl(positionRequest.withPosition(Constants.Turret.kOriginAngle));
       return;
     }
 
-    // Convert degrees to rotations
-    double angleRadians = Units.degreesToRadians(angleDegrees);
-    double positionRotations = angleRadians / (2.0 * Math.PI);
+    this.targetAngleDegrees = angleDegrees;
+
+    // Convert degrees to motor rotations, accounting for the 180° origin offset
+    double positionRotations = Units.degreesToRotations(angleDegrees);
 
     motor.setControl(positionRequest.withPosition(positionRotations));
   }
 
   /**
-   * Set pivot angular velocity.
-   * @param velocityDegPerSec The target velocity in degrees per second
-   */
-  public void setVelocity(double velocityDegPerSec) {
-    setVelocity(velocityDegPerSec, 0);
-  }
-
-  /**
-   * Set pivot angular velocity with acceleration.
-   * @param velocityDegPerSec The target velocity in degrees per second
-   * @param acceleration The acceleration in degrees per second squared
-   */
-  public void setVelocity(double velocityDegPerSec, double acceleration) {
-    // Track target for telemetry
-    this.targetVelocityDegPerSec = velocityDegPerSec;
-    this.targetAngleDegrees = Units.rotationsToDegrees(getPosition());
-
-    if (!Constants.Turret.kTurretEnabled) {
-      motor.setControl(positionRequest.withPosition(Constants.Turret.kOriginAngle));
-      return;
-    }
-
-    // Convert degrees/sec to rotations/sec
-    double velocityRadPerSec = Units.degreesToRadians(velocityDegPerSec);
-    double velocityRotations = velocityRadPerSec / (2.0 * Math.PI);
-
-    motor.setControl(velocityRequest.withVelocity(velocityRotations));
-  }
-
-  /**
-   * Set motor voltage directly.
-   * @param voltage The voltage to apply
-   */
-  public void setVoltage(double voltage) {
-    this.targetAngleDegrees = Units.rotationsToDegrees(getPosition());
-    this.targetVelocityDegPerSec = 0;
-
-    if (!Constants.Turret.kTurretEnabled) {
-      motor.setControl(positionRequest.withPosition(Constants.Turret.kOriginAngle));
-      return;
-    }
-
-    motor.setVoltage(voltage);
-  }
-
-  /**
    * Get the pivot simulation for testing.
-   * @return The pivot simulation model
    */
   public SingleJointedArmSim getSimulation() {
     return pivotSim;
   }
 
   /**
-   * Creates a command to set the pivot to a specific angle.
+   * Creates a command to set the turret to a specific angle.
    * @param angleDegrees The target angle in degrees
-   * @return A command that sets the pivot to the specified angle
    */
   public Command setAngleCommand(double angleDegrees) {
     return runOnce(() -> setAngle(angleDegrees));
   }
 
   /**
-   * Creates a command to move the pivot to a specific angle with a profile.
+   * Creates a command to move the turret to a specific angle using position control.
    * @param angleDegrees The target angle in degrees
-   * @return A command that moves the pivot to the specified angle
    */
   public Command moveToAngleCommand(double angleDegrees) {
-    return run(() -> {
-      double currentAngle = Units.rotationsToDegrees(getPosition());
-      double error = angleDegrees - currentAngle;
-      double velocityDegPerSec =
-        Math.signum(error) *
-        Math.min(Math.abs(error) * 2.0, Units.radiansToDegrees(maxVelocity));
-      setVelocity(velocityDegPerSec);
-    })
-      .until(() -> {
-        double currentAngle = Units.rotationsToDegrees(getPosition());
-        return Math.abs(angleDegrees - currentAngle) < 2.0; // 2 degree tolerance
-      })
-      .finallyDo(interrupted -> setVelocity(0));
+    return run(() -> setAngle(angleDegrees))
+      .until(() -> Math.abs(angleDegrees - getAngle()) < 2.0);
   }
 
   /**
-   * Creates a command to stop the pivot.
-   * @return A command that stops the pivot
+   * Creates a command to hold the turret at its current position.
    */
   public Command stopCommand() {
-    return runOnce(() -> setVelocity(0));
-  }
-
-  /**
-   * Creates a command to move the pivot at a specific velocity.
-   * @param velocityDegPerSec The target velocity in degrees per second
-   * @return A command that moves the pivot at the specified velocity
-   */
-  public Command moveAtVelocityCommand(double velocityDegPerSec) {
-    return run(() -> setVelocity(velocityDegPerSec));
+    return runOnce(() -> setAngle(getAngle()));
   }
 
   /**
    * Creates a command to automatically aim the turret at a target.
    * @param robotPoseSupplier Supplier that provides the current robot pose
    * @param target The target to aim at (HUB, LEFT_PASS, or RIGHT_PASS)
-   * @return A command that continuously aims the turret at the target
    */
-  public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, Supplier<ChassisSpeeds> fieldRelativeSpeedsSupplier, TurretUtil.TargetType target) {
+  public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, TurretUtil.TargetType target) {
     return run(() -> {
       Pose2d robotPose = robotPoseSupplier.get();
-      ChassisSpeeds speeds = fieldRelativeSpeedsSupplier.get();
-      double vx = speeds.vxMetersPerSecond;
-      double vy = speeds.vyMetersPerSecond;
 
-      TurretUtil.ShotSolution solution = TurretUtil.computeLeadShotSolution(robotPose, vx, vy, target);
+      TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(robotPose, target);
 
       if (solution.isValid) {
         setAngle(solution.turretAngleDegrees);
+
+        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", true);
       }
-    }).finallyDo(__ -> setVelocity(0)).withName("AutoAim-" + target.toString());
+      else
+      {
+        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", false);
+      }
+      
+    }).withName("AutoAim-" + target.toString());
   }
 
   //------------------------ Tuning -----------------------//
 
   /**
-   * Sets turret angle and velocity using tunable PID values and setpoints from dashboard.
-   * Updates PID gains in real-time and uses Setpoint1 for angle and Setpoint2 for velocity.
-   * @param dashboard The dashboard publisher for retrieving tunable values
+   * Sets turret angle using tunable PID values and setpoint from dashboard.
    */
   private void turretTunable() {
-    // Get tunable PID values
     double kP = SmartDashboard.getNumber("Turret/kP", 0);
     double kI = SmartDashboard.getNumber("Turret/kI", 0);
     double kD = SmartDashboard.getNumber("Turret/kD", 0);
     double kV = SmartDashboard.getNumber("Turret/kV", 0);
     double kA = SmartDashboard.getNumber("Turret/kA", 0);
-    double angleSetpoint =
-    SmartDashboard.getNumber("Turret/AngleSetpoint", 0);
-    double velocitySetpoint =
-    SmartDashboard.getNumber("Turret/VelocitySetpoint", 0);
+    double angleSetpoint = SmartDashboard.getNumber("Turret/AngleSetpoint", 0);
 
-
-    // Update PID gains in slot 0
     Slot0Configs slot0 = new Slot0Configs();
     slot0.kP = kP;
     slot0.kI = kI;
     slot0.kD = kD;
     slot0.kV = kV;
     slot0.kA = kA;
-    slot0.kS = kS; // Keep original kS
-    
+    slot0.kS = kS;
+
     motor.getConfigurator().apply(slot0);
 
-    // Set angle or velocity based on which setpoint is non-zero
-    // Priority: if angle setpoint is non-zero, use angle control
-    // Otherwise, use velocity control if velocity setpoint is non-zero
-    if (Math.abs(angleSetpoint) > 0.01) {
-      setAngle(angleSetpoint);
-    } else if (Math.abs(velocitySetpoint) > 0.01) {
-      setVelocity(velocitySetpoint);
-    } else {
-      // Both are zero, stop the motor
-      setVelocity(0);
-    }
+    setAngle(angleSetpoint);
   }
 }
