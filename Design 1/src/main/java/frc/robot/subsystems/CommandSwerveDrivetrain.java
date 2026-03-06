@@ -18,6 +18,7 @@ import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.path.PathConstraints;
 
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -171,6 +172,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             SwerveDrivetrainConstants drivetrainConstants,
             SwerveModuleConstants<?, ?, ?>... modules) {
 
+        // super(drivetrainConstants, 0.004, modules);
         super(drivetrainConstants, modules);
 
         m_turretPositionSignal = turretPositionSignal;
@@ -186,7 +188,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             SwerveDrivetrainConstants drivetrainConstants,
             SwerveModuleConstants<?, ?, ?>... modules) {
 
+        // super(drivetrainConstants, 0.004, modules);
         super(drivetrainConstants, modules);
+
         if (Utils.isSimulation()) {
             startSimThread();
         }
@@ -213,24 +217,33 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
             // Don't use the ll rotation, there's issues and pigeon is more accur.
 
-            this.llMegaTagPosePublisher.set(res);
+            // this.llMegaTagPosePublisher.set(res);
 
             double visionTimestampSeconds = Timer.getFPGATimestamp() - limelight.getLatencyInSeconds();
 
             double turretRotations = m_bufferedTurretAngle.getValueAt(visionTimestampSeconds,
                     TimestampSource.System);
-            Rotation3d turretRotation3d = new Rotation3d(0.0, 0.0, turretRotations * 2.0 * Math.PI);
+            // kOriginAngle = 180° → motor resets to 0.5 rot at robot-forward.
+            // Turret angle relative to robot forward (CCW+) = (0.5 - turretRotations) * 2π.
+            // Motor increases when turret goes RIGHT, so right = negative CCW = (0.5 - rot) gives -ve ✓.
+            double turretAngleRad = (0.5 - turretRotations) * 2.0 * Math.PI;
+            Rotation3d turretRotation3d = new Rotation3d(0.0, 0.0, turretAngleRad);
 
-            // Use Pigeon heading instead of Limelight rotation (more consistent)
+            // getRobotPoseFromCameraPose rotates the camera-to-robot offset using res.getRotation().
+            // Limelight's heading is unreliable, so supply the correct camera heading instead:
+            // camera heading in field = pigeon heading + turret angle (camera mounting yaw = 0°).
             Rotation2d pigeonHeading = Rotation2d.fromDegrees(getPigeon2().getYaw().getValueAsDouble());
+            Rotation2d cameraHeading = pigeonHeading.plus(new Rotation2d(turretAngleRad));
+            Pose2d correctedCameraFieldPose = new Pose2d(res.getTranslation(), cameraHeading);
             Pose2d convertedRobotPose = new Pose2d(
-                LimelightOnTurretUtils.getRobotPoseFromCameraPose(res, turretRotation3d).getTranslation(),
+                LimelightOnTurretUtils.getRobotPoseFromCameraPose(correctedCameraFieldPose, turretRotation3d).getTranslation(),
                 pigeonHeading
             );
 
             blehPublisher.set(convertedRobotPose);
 
-            addVisionMeasurement(convertedRobotPose, visionTimestampSeconds);
+            // Large theta std dev (1e9) = Kalman filter ignores heading from vision entirely.
+            addVisionMeasurement(convertedRobotPose, visionTimestampSeconds, VecBuilder.fill(0.5, 0.5, 1e9));
 
             this.llMegaTagPosePublisher.set(convertedRobotPose);
         }

@@ -25,10 +25,9 @@ public class Intake extends SubsystemBase {
     // NEO — linear extension (14t driving 48t)
     private final SparkMax m_extensionMotor = new SparkMax(Constants.Intake.kExtensionMotorCanID, MotorType.kBrushless);
 
-    // private CurrentDetection extension_current; //  extension_doDo should stop when doExtend and doRetract are running when overcurrent current detection is true.
-    private boolean extension_doExtend; // Should extend while extension_doDo
-    private boolean extension_doRetract; // Should retract while extension_doDo
-    private boolean extension_doDo;
+    private final CurrentDetection extensionCurrentDetection = new CurrentDetection(Constants.Intake.kExtensionCurrentLimit - 1);
+    private boolean isExtended = false;       // true = currently in extended position
+    private boolean isExtensionMoving = false; // true = motor actively running to extend/retract
 
     public Intake() {
         // KrakenX60 config
@@ -47,15 +46,22 @@ public class Intake extends SubsystemBase {
 
     @Override
     public void periodic() {
-        
-        SmartDashboard.putNumber("Intake/Extension/Amperage", this.m_extensionMotor.getOutputCurrent());
+        double extensionCurrent = m_extensionMotor.getOutputCurrent();
+        SmartDashboard.putNumber("Intake/Extension/Amperage", extensionCurrent);
+        SmartDashboard.putBoolean("Intake/Extension/IsExtended", isExtended);
+        SmartDashboard.putBoolean("Intake/Extension/IsMoving", isExtensionMoving);
 
+        // Stop the extension motor when it stalls (reached physical limit)
+        if (isExtensionMoving && extensionCurrentDetection.isOvercurrent(extensionCurrent)) {
+            stopExtension();
+            isExtensionMoving = false;
+        }
     }
 
     // --- Intake shaft (KrakenX60) ---
 
     public void intake(double speed) {
-        m_intakeMotor.set(-speed);
+        m_intakeMotor.set(speed);
     }
 
     public void score(double speed) {
@@ -74,16 +80,36 @@ public class Intake extends SubsystemBase {
         return Commands.runEnd(() -> score(speed), this::stop, this).withName("Score");
     }
 
+    /**
+     * Toggles the extension: if retracted, starts extending; if extended, starts retracting.
+     * The motor stops automatically in periodic() when a 40A current spike is detected.
+     */
+    public void toggleExtension() {
+        isExtended = !isExtended;
+        isExtensionMoving = true;
+        if (isExtended) {
+            extend(0.30);
+        } else {
+            retract(0.30);
+        }
+    }
+
+    public Command toggleExtensionCommand() {
+        return runOnce(this::toggleExtension).withName("ToggleExtension");
+    }
+
     public void extend(double speed) {
         m_extensionMotor.set(speed);
     }
 
     public void retract(double speed) {
         m_extensionMotor.set(-speed);
+        intake(1.0);
     }
 
     public void stopExtension() {
         m_extensionMotor.set(0);
+        stop();
     }
 
     public double getExtensionPosition() {

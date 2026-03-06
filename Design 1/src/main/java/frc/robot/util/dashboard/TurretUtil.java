@@ -204,13 +204,13 @@ public class TurretUtil {
     /** Selects the correct lookup table and returns interpolated parameters. */
     private static HubLookUpTable.ShootingParameters getTableParams(double distanceMeters, TargetType target) {
         switch (target) {
-            case HUB:
-                return hubTable.getParameters(distanceMeters);
-            case LEFT_PASS:
-            case RIGHT_PASS:
-                // PassLookUpTable has the same ShootingParameters shape; bridge here
-                PassLookUpTable.ShootingParameters p = passTable.getParameters(distanceMeters);
-                return new HubLookUpTable.ShootingParameters(p.shooterSpeed, p.trajectoryAngle, p.timeOfFlight);
+            // case HUB:
+            //     return hubTable.getParameters(distanceMeters);
+            // case LEFT_PASS:
+            // case RIGHT_PASS:
+            //     // PassLookUpTable has the same ShootingParameters shape; bridge here
+            //     PassLookUpTable.ShootingParameters p = passTable.getParameters(distanceMeters);
+            //     return new HubLookUpTable.ShootingParameters(p.shooterSpeed, p.trajectoryAngle, p.timeOfFlight);
             default:
                 return hubTable.getParameters(distanceMeters);
         }

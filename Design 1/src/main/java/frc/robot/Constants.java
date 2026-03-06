@@ -2,6 +2,8 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.Radians;
+import static edu.wpi.first.units.Units.RadiansPerSecond;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 import com.pathplanner.lib.path.PathConstraints;
 
@@ -17,6 +19,7 @@ import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.AngularVelocity;
 
 public class Constants {
 
@@ -45,8 +48,8 @@ public class Constants {
         public static final int kTurretCanID = 44; // CAN ID (dimensionless)
 
         // WCP Throughbore CANcoder on output shaft
-        public static final int kThroughboreCanID = 58;
-        public static final double kEncoderOffset = 0.0;  // TODO: calibrate so 0.0 = forward (rotations)
+        // public static final int kThroughboreCanID = 58;
+        // public static final double kEncoderOffset = 0.0;  // TODO: calibrate so 0.0 = forward (rotations)
 
         public static final double kTurretOffsetX  = Units.inchesToMeters(6.715); // X offset (forward +X, backward -X) from robot center to turret (meters) 
         public static final double kTurretOffsetY = Units.inchesToMeters(5.282); // Y offset (left +Y, right -Y) from robot center to turret (meters)
@@ -66,11 +69,11 @@ public class Constants {
 
         // Motor and control constants
         public static final double kGearRatio = (48.0 / 14.0) * (120.0 / 35.0); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
-        public static final double kKP = 15; // Proportional gain (dimensionless)
+        public static final double kKP = 20; // Proportional gain (dimensionless)
         public static final double kKI = 0; // Integral gain (dimensionless)
         public static final double kKD = 0.1; // Derivative gain (dimensionless)
-        public static final double kKS = 0.1; // Static friction feedforward (volts)
-        public static final double kKV = 0.1; // Velocity feedforward (volt-seconds per radian)
+        public static final double kKS = 2; // Static friction feedforward (volts)
+        public static final double kKV = 1; // Velocity feedforward (volt-seconds per radian)
         public static final double kKA = 0; // Acceleration feedforward (volt-seconds² per radian)
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
         public static final double kMaxVelocity = 4; // Maximum velocity (rad/s)
@@ -114,6 +117,11 @@ public class Constants {
 
         public static final double kStatorCurrentLimit = 40.0;
         public static final int kExtensionCurrentLimit = 40;
+    }
+
+    public static final class Drivetrain {
+        public static final double kCruiseSpeed = 1.25;
+        public static final AngularVelocity kCruiseAngularRate = RotationsPerSecond.of(0.5);
     }
 
     public static final class Climber {

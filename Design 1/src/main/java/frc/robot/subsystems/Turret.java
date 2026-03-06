@@ -31,6 +31,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.util.dashboard.TurretUtil;
 
+import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -206,7 +207,6 @@ public class Turret extends SubsystemBase {
    * Get the current position in Rotations (raw motor value, includes origin offset).
    * @return Position in Rotations
    */
-  @Logged(name = "Position/Rotations")
   public double getPosition() {
     return positionSignal.getValueAsDouble();
   }
@@ -222,7 +222,6 @@ public class Turret extends SubsystemBase {
   /**
    * Get the current velocity in rotations per second.
    */
-  @Logged(name = "Velocity")
   public double getVelocity() {
     return velocitySignal.getValueAsDouble();
   }
@@ -230,7 +229,6 @@ public class Turret extends SubsystemBase {
   /**
    * Get the current applied voltage.
    */
-  @Logged(name = "Voltage")
   public double getVoltage() {
     return voltageSignal.getValueAsDouble();
   }
@@ -252,7 +250,6 @@ public class Turret extends SubsystemBase {
   /**
    * Get the target angle in degrees.
    */
-  @Logged(name = "Target/AngleDegrees")
   public double getTargetAngleDegrees() {
     return targetAngleDegrees;
   }
@@ -260,7 +257,6 @@ public class Turret extends SubsystemBase {
   /**
    * Get the position error in degrees (target - current).
    */
-  @Logged(name = "Error/AngleDegrees")
   public double getErrorDegrees() {
     return targetAngleDegrees - getAngle();
   }
@@ -274,13 +270,11 @@ public class Turret extends SubsystemBase {
   }
 
   /**
-   * Set turret angle with acceleration.
+   * Set turret angle with feedforward voltage.
    * @param angleDegrees The target angle in degrees (0 = forward)
-   * @param acceleration The acceleration in rad/s²
+   * @param feedForwardVolts Extra voltage to apply (e.g. yaw-rate compensation)
    */
-  public void setAngle(double angleDegrees, double acceleration) {
-    // angleDegrees = Math.max(Constants.Turret.kMinAngleDegrees, Math.min(Constants.Turret.kMaxAngleDegrees, angleDegrees));
-
+  public void setAngle(double angleDegrees, double feedForwardVolts) {
     if (!Constants.Turret.kTurretEnabled) {
       return;
     }
@@ -290,7 +284,7 @@ public class Turret extends SubsystemBase {
     // Convert degrees to motor rotations, accounting for the 180° origin offset
     double positionRotations = Units.degreesToRotations(angleDegrees);
 
-    motor.setControl(positionRequest.withPosition(positionRotations));
+    motor.setControl(positionRequest.withPosition(positionRotations).withFeedForward(feedForwardVolts));
   }
 
   /**
@@ -329,14 +323,32 @@ public class Turret extends SubsystemBase {
    * @param robotPoseSupplier Supplier that provides the current robot pose
    * @param target The target to aim at (HUB, LEFT_PASS, or RIGHT_PASS)
    */
+  /**
+   * Auto-aim without feedforward (for auto paths / named commands).
+   */
   public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, TurretUtil.TargetType target) {
+    return autoAimCommand(robotPoseSupplier, target, () -> 0.0);
+  }
+
+  /**
+   * Auto-aim with yaw-rate feedforward for reduced tracking delay.
+   * @param robotPoseSupplier Supplier for the current robot pose
+   * @param target The target to aim at
+   * @param robotOmegaRadPerSec Supplier for the robot's angular velocity (rad/s, CCW+)
+   */
+  public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, TurretUtil.TargetType target,
+                                 DoubleSupplier robotOmegaRadPerSec) {
     return run(() -> {
       Pose2d robotPose = robotPoseSupplier.get();
 
       TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(robotPose, target);
 
       if (solution.isValid) {
-        setAngle(solution.turretAngleDegrees);
+        // Feedforward: when robot rotates at ω, turret target moves at -ω in turret frame
+        double omega = robotOmegaRadPerSec.getAsDouble();
+        double turretVelRotPerSec = -omega / (2.0 * Math.PI);
+        double ffVolts = kV * turretVelRotPerSec;
+        setAngle(solution.turretAngleDegrees, ffVolts);
 
         SmartDashboard.putBoolean("Turret/AutoAim/IsValid", true);
       }
@@ -344,7 +356,7 @@ public class Turret extends SubsystemBase {
       {
         SmartDashboard.putBoolean("Turret/AutoAim/IsValid", false);
       }
-      
+
     }).withName("AutoAim-" + target.toString());
   }
 
