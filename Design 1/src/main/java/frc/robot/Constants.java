@@ -27,8 +27,8 @@ public class Constants {
 
         public static final Transform3d kLimelightPosition = new Transform3d(
             new Translation3d(
-                Units.inchesToMeters(-11.919), 
-                Units.inchesToMeters(6.715), 
+                Units.inchesToMeters(-11.919),
+                Units.inchesToMeters(1.715),
                 Units.inchesToMeters(18.0)),  // TODO: Verify that this is from the ground.
             new Rotation3d(
                 Units.degreesToRadians(0),      // Roll: 0 degrees
@@ -37,10 +37,12 @@ public class Constants {
             ))
         ;
 
-        public static final Transform3d kLimelightOffsetFromTurretOffset = new Transform3d(
-            kLimelightPosition.getTranslation().minus(Turret.kTurretOffsetFromRobotCenter),
-            kLimelightPosition.getRotation()
-        );
+        // Camera XY offset from turret pivot in turret-local frame (meters, 2D only)
+        // These use the camera's absolute XY minus the turret pivot's absolute XY
+        public static final double kCamFromTurretX =
+            Units.inchesToMeters(-11.919) - Turret.kTurretOffsetX;
+        public static final double kCamFromTurretY =
+            Units.inchesToMeters(1.715) - Turret.kTurretOffsetY;
     }
 
     public static class Turret {
@@ -116,7 +118,9 @@ public class Constants {
         public static final double kExtensionGearRatio = 48.0 / 14.0; // motor rotations per output rotation
 
         public static final double kStatorCurrentLimit = 35.0;
-        public static final int kExtensionCurrentLimit = 40;
+        public static final int kExtensionCurrentLimit = 35;       // SparkMax smart current limit (amps)
+        public static final double kExtensionStallThreshold = 30;  // stall detection threshold (amps) — must be below kExtensionCurrentLimit
+        public static final double kExtensionStallDurationSeconds = 0.25; // sustain overcurrent this long before stopping
         public static final double kHoldSpeed = 0.75; // duty cycle to hold game pieces while extended
     }
 

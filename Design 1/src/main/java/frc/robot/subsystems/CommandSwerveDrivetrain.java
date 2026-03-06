@@ -40,7 +40,7 @@ import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Limelight.Limelight;
 import frc.robot.util.LimelightOnTurretUtils;
-import edu.wpi.first.math.geometry.Rotation3d;
+
 import frc.robot.Limelight.LimelightHelpers;
 import frc.robot.BufferedStatusSignal;
 import com.ctre.phoenix6.Timestamp.TimestampSource;
@@ -212,12 +212,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             this.llRawPosePublisher.set(rawResult.get());
         }
         if (megaTagResult.isPresent() && !megaTagResult.get().equals(Pose2d.kZero)) {
-
             var res = megaTagResult.get();
-
-            // Don't use the ll rotation, there's issues and pigeon is more accur.
-
-            // this.llMegaTagPosePublisher.set(res);
 
             double visionTimestampSeconds = Timer.getFPGATimestamp() - limelight.getLatencyInSeconds();
 
@@ -225,27 +220,23 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     TimestampSource.System);
             // kOriginAngle = 180° → motor resets to 0.5 rot at robot-forward.
             // Turret angle relative to robot forward (CCW+) = (0.5 - turretRotations) * 2π.
-            // Motor increases when turret goes RIGHT, so right = negative CCW = (0.5 - rot) gives -ve ✓.
             double turretAngleRad = (0.5 - turretRotations) * 2.0 * Math.PI;
-            Rotation3d turretRotation3d = new Rotation3d(0.0, 0.0, turretAngleRad);
 
-            // getRobotPoseFromCameraPose rotates the camera-to-robot offset using res.getRotation().
-            // Limelight's heading is unreliable, so supply the correct camera heading instead:
-            // camera heading in field = pigeon heading + turret angle (camera mounting yaw = 0°).
+            // Camera heading = pigeon heading + turret angle (camera yaw = 0° in turret frame)
             Rotation2d pigeonHeading = Rotation2d.fromDegrees(getPigeon2().getYaw().getValueAsDouble());
             Rotation2d cameraHeading = pigeonHeading.plus(new Rotation2d(turretAngleRad));
-            Pose2d correctedCameraFieldPose = new Pose2d(res.getTranslation(), cameraHeading);
-            Pose2d convertedRobotPose = new Pose2d(
-                LimelightOnTurretUtils.getRobotPoseFromCameraPose(correctedCameraFieldPose, turretRotation3d).getTranslation(),
-                pigeonHeading
-            );
+            Pose2d correctedCameraPose = new Pose2d(res.getTranslation(), cameraHeading);
 
-            blehPublisher.set(convertedRobotPose);
+            // 2D transform: camera field pose → robot field pose
+            Pose2d robotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(correctedCameraPose, turretAngleRad);
+            Pose2d finalPose = new Pose2d(robotPose.getTranslation(), pigeonHeading);
+
+            blehPublisher.set(finalPose);
 
             // Large theta std dev (1e9) = Kalman filter ignores heading from vision entirely.
-            addVisionMeasurement(convertedRobotPose, visionTimestampSeconds, VecBuilder.fill(0.5, 0.5, 1e9));
+            addVisionMeasurement(finalPose, visionTimestampSeconds, VecBuilder.fill(0.5, 0.5, 1e9));
 
-            this.llMegaTagPosePublisher.set(convertedRobotPose);
+            this.llMegaTagPosePublisher.set(finalPose);
         }
         // if (stablePose.isPresent())
         // {

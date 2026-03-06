@@ -5,36 +5,35 @@ import frc.robot.Constants;
 
 public class LimelightOnTurretUtils {
 
-    public static Pose2d getRobotPoseFromCameraPose(Pose2d cameraFieldPose2d, Rotation3d turretRotation3d) {
+    /**
+     * Converts a camera field pose to a robot field pose using 2D math.
+     *
+     * @param cameraFieldPose Camera's field position (XY from MegaTag) with
+     *                        corrected heading (pigeon + turret angle)
+     * @param turretAngleRad  Turret angle in radians (CCW+, 0 = forward)
+     * @return Robot center's field pose
+     */
+    public static Pose2d getRobotPoseFromCameraPose(Pose2d cameraFieldPose, double turretAngleRad) {
 
-        Pose3d cameraFieldPose = new Pose3d(
-            cameraFieldPose2d.getX(),
-            cameraFieldPose2d.getY(),
-            0.0,
-            new Rotation3d(0, 0, cameraFieldPose2d.getRotation().getRadians())
-        );
+        // Camera XY offset from turret pivot (in turret-local frame)
+        double camFromTurretX = Constants.Vision.kCamFromTurretX;
+        double camFromTurretY = Constants.Vision.kCamFromTurretY;
 
-        // Turret rotation goes here so that plus() rotates turretToCamera.translation
-        // by turretRotation3d, correctly placing the camera in the robot frame.
-        Transform3d robotToTurret = new Transform3d(
-            Constants.Turret.kTurretOffsetFromRobotCenter,
-            turretRotation3d
-        );
+        // Rotate camera offset by turret angle, add turret pivot offset → camera in robot frame
+        double cos = Math.cos(turretAngleRad);
+        double sin = Math.sin(turretAngleRad);
+        double camInRobotX = Constants.Turret.kTurretOffsetX + cos * camFromTurretX - sin * camFromTurretY;
+        double camInRobotY = Constants.Turret.kTurretOffsetY + sin * camFromTurretX + cos * camFromTurretY;
 
-        // Fixed offset of camera from turret pivot, in the turret's local frame.
-        // Includes camera pitch (kLimelightOffsetFromTurretOffset.getRotation()) so that
-        // the height of the camera correctly projects into X,Y when inverting the transform.
-        Transform3d turretToCamera = new Transform3d(
-            Constants.Vision.kLimelightOffsetFromTurretOffset.getTranslation(),
-            Constants.Vision.kLimelightOffsetFromTurretOffset.getRotation()
-        );
+        // Robot heading = camera heading - turret angle
+        double robotHeadingRad = cameraFieldPose.getRotation().getRadians() - turretAngleRad;
 
-        // plus() computes: translation = kTurretOffset + turretRotation.apply(kCameraOffset)
-        Transform3d robotToCamera = robotToTurret.plus(turretToCamera);
+        // Robot field position = camera field position - R(robotHeading) * camInRobot
+        double cosH = Math.cos(robotHeadingRad);
+        double sinH = Math.sin(robotHeadingRad);
+        double robotX = cameraFieldPose.getX() - (cosH * camInRobotX - sinH * camInRobotY);
+        double robotY = cameraFieldPose.getY() - (sinH * camInRobotX + cosH * camInRobotY);
 
-        // transformBy handles field-frame conversion internally; no manual yaw rotation needed.
-        Pose3d robotFieldPose = cameraFieldPose.transformBy(robotToCamera.inverse());
-
-        return robotFieldPose.toPose2d();
+        return new Pose2d(robotX, robotY, new Rotation2d(robotHeadingRad));
     }
 }

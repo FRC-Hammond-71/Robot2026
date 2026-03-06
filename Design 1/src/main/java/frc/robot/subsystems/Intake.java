@@ -25,7 +25,8 @@ public class Intake extends SubsystemBase {
     // NEO — linear extension (14t driving 48t)
     private final SparkMax m_extensionMotor = new SparkMax(Constants.Intake.kExtensionMotorCanID, MotorType.kBrushless);
 
-    private final CurrentDetection extensionCurrentDetection = new CurrentDetection(Constants.Intake.kExtensionCurrentLimit - 1);
+    private final CurrentDetection extensionCurrentDetection = new CurrentDetection(
+        Constants.Intake.kExtensionStallThreshold, Constants.Intake.kExtensionStallDurationSeconds);
     private boolean isExtended = false;       // true = currently in extended position
     private boolean isExtensionMoving = false; // true = motor actively running to extend/retract
 
@@ -57,9 +58,13 @@ public class Intake extends SubsystemBase {
             isExtensionMoving = false;
         }
 
-        // Keep intake motor running while extended to hold game pieces
-        if (isExtended && !isExtensionMoving) {
+        // Run intake while retracting (full speed) or while extended (hold speed)
+        if (!isExtended && isExtensionMoving) {
+            intake(1.0);
+        } else if (isExtended) {
             intake(Constants.Intake.kHoldSpeed);
+        } else {
+            stop();
         }
     }
 
@@ -92,10 +97,11 @@ public class Intake extends SubsystemBase {
     public void toggleExtension() {
         isExtended = !isExtended;
         isExtensionMoving = true;
+        extensionCurrentDetection.reset();
         if (isExtended) {
-            extend(0.30);
+            extend(0.35);
         } else {
-            retract(0.30);
+            retract(0.35);
         }
     }
 

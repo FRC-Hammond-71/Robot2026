@@ -133,9 +133,9 @@ public class RobotContainer {
 		NamedCommands.registerCommand("Climb", climber.climbCommand());
 	}
 
-	private SlewRateLimiter xLimiter = new SlewRateLimiter(2);
-	private SlewRateLimiter yLimiter = new SlewRateLimiter(2);
-	private SlewRateLimiter rotLimiter = new SlewRateLimiter(Math.PI);
+	private SlewRateLimiter xLimiter = new SlewRateLimiter(10);
+	private SlewRateLimiter yLimiter = new SlewRateLimiter(10);
+	// private SlewRateLimiter rotLimiter = new SlewRateLimiter(Math.PI);
 
 	private void configureBindings() {
 
@@ -164,10 +164,9 @@ public class RobotContainer {
 					if (isRotating) {
 						wasRotating = true;
 						return drive
-								.withVelocityX(-joystick.getLeftY() * currentSpeed)
-								.withVelocityY(-joystick.getLeftX() * currentSpeed)
-								.withRotationalRate(rotInput
-										* Constants.Drivetrain.kCruiseAngularRate.in(RadiansPerSecond) * speedScale);
+								.withVelocityX(xLimiter.calculate(-joystick.getLeftY() * currentSpeed))
+								.withVelocityY(yLimiter.calculate(-joystick.getLeftX() * currentSpeed))
+								.withRotationalRate(rotInput * Constants.Drivetrain.kCruiseAngularRate.in(RadiansPerSecond) * speedScale);
 					} else {
 						// Capture heading when driver stops rotating
 						if (wasRotating) {
@@ -175,8 +174,8 @@ public class RobotContainer {
 							wasRotating = false;
 						}
 						return headingKeep
-								.withVelocityX(-joystick.getLeftY() * currentSpeed)
-								.withVelocityY(-joystick.getLeftX() * currentSpeed)
+								.withVelocityX(xLimiter.calculate(-joystick.getLeftY() * currentSpeed))
+								.withVelocityY(yLimiter.calculate(-joystick.getLeftX() * currentSpeed))
 								.withTargetDirection(lastHeading);
 					}
 
@@ -186,6 +185,13 @@ public class RobotContainer {
 		// neutral mode is applied to the drive motors while disabled.
 		final var idle = new SwerveRequest.Idle();
 		RobotModeTriggers.disabled().whileTrue(drivetrain.applyRequest(() -> idle).ignoringDisable(true));
+
+		// Default turret behavior: always track the hub in teleop
+		turret.setDefaultCommand(
+				turret.autoAimCommand(
+						() -> drivetrain.getState().Pose,
+						TargetType.HUB,
+						() -> drivetrain.getState().Speeds.omegaRadiansPerSecond));
 
 		RobotModeTriggers.teleop().and(joystick.a()).whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 
