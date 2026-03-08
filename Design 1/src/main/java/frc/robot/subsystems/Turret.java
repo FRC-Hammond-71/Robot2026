@@ -326,7 +326,7 @@ public class Turret extends SubsystemBase {
   /**
    * Auto-aim without feedforward (for auto paths / named commands).
    */
-  public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, TurretUtil.TargetType target) {
+  public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, Supplier<TurretUtil.TargetType> target) {
     return autoAimCommand(robotPoseSupplier, target, () -> 0.0);
   }
 
@@ -336,12 +336,12 @@ public class Turret extends SubsystemBase {
    * @param target The target to aim at
    * @param robotOmegaRadPerSec Supplier for the robot's angular velocity (rad/s, CCW+)
    */
-  public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, TurretUtil.TargetType target,
+  public Command autoAimCommand(Supplier<Pose2d> robotPoseSupplier, Supplier<TurretUtil.TargetType> target,
                                  DoubleSupplier robotOmegaRadPerSec) {
     return run(() -> {
       Pose2d robotPose = robotPoseSupplier.get();
 
-      TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(robotPose, target);
+      TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(robotPose, target.get());
 
       if (solution.isValid) {
         // Feedforward: when robot rotates at ω, turret target moves at -ω in turret frame

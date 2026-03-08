@@ -4,6 +4,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants;
 import frc.robot.generated.FieldConstants;
 
@@ -193,6 +194,7 @@ public class TurretUtil {
 
     /** True if the turret can physically reach the requested angle. */
     public static boolean isTurretAngleReachable(double angleDegrees) {
+        SmartDashboard.putNumber("BLEHH", angleDegrees);
         return angleDegrees >= Constants.Turret.kMinAngleDegrees
                 && angleDegrees <= Constants.Turret.kMaxAngleDegrees;
     }

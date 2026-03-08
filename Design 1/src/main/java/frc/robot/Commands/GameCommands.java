@@ -3,6 +3,7 @@ package frc.robot.Commands;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
+import com.ctre.phoenix6.controls.NeutralOut;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.pathplanner.lib.auto.NamedCommands;
 
@@ -33,11 +34,11 @@ public class GameCommands {
     private final CommandSwerveDrivetrain drivetrain;
     private final CommandXboxController xboxController;
 
-    private final SwerveRequest.FieldCentricFacingAngle rotateInPlaceRequest =
-        new SwerveRequest.FieldCentricFacingAngle()
+    private final SwerveRequest.FieldCentricFacingAngle rotateInPlaceRequest = new SwerveRequest.FieldCentricFacingAngle()
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
-    public GameCommands(Shooter shooter, Turret turret, CommandSwerveDrivetrain drivetrain, Spindexer spindexer, CommandXboxController xboxController) {
+    public GameCommands(Shooter shooter, Turret turret, CommandSwerveDrivetrain drivetrain, Spindexer spindexer,
+            CommandXboxController xboxController) {
         this.shooter = shooter;
         this.turret = turret;
         this.spindexer = spindexer;
@@ -51,42 +52,45 @@ public class GameCommands {
     /**
      * Registers all game commands as PathPlanner named commands.
      * Call this in RobotContainer BEFORE CommandSwerveDrivetrain is constructed
-     * (i.e., before AutoBuilder.configure() is called inside configureAutoBuilder()).
+     * (i.e., before AutoBuilder.configure() is called inside
+     * configureAutoBuilder()).
      */
     public void registerNamedCommands() {
-        NamedCommands.registerCommand("ShootAtHub",       shootAtHubCommand());
-        NamedCommands.registerCommand("AutoShootAtHub",  autoShootAtHubCommand());
-        NamedCommands.registerCommand("PassLeft",        passLeftCommand());
-        NamedCommands.registerCommand("PassRight",       passRightCommand());
+        NamedCommands.registerCommand("ShootAtHub", shootAtHubCommand());
+        NamedCommands.registerCommand("AutoShootAtHub", autoShootAtHubCommand());
+        NamedCommands.registerCommand("PassLeft", passLeftCommand());
+        NamedCommands.registerCommand("PassRight", passRightCommand());
     }
 
     /**
      * Rotates the robot in place until the given target falls within the turret's
-     * allowed range (ShotSolution.isValid).  Ends immediately if already in range.
+     * allowed range (ShotSolution.isValid). Ends immediately if already in range.
      */
     public Command rotateIntoRangeCommand(TurretUtil.TargetType target,
-                                           Supplier<Translation2d> targetXY) {
+            Supplier<Translation2d> targetXY) {
         return drivetrain.applyRequest(() -> {
-            Translation2d tgt   = targetXY.get();
+            Translation2d tgt = targetXY.get();
             Translation2d robot = drivetrain.getState().Pose.getTranslation();
 
             double fieldAngleDeg = Math.toDegrees(
-                Math.atan2(tgt.getY() - robot.getY(), tgt.getX() - robot.getX()));
+                    Math.atan2(tgt.getY() - robot.getY(), tgt.getX() - robot.getX()));
 
-            // Rotate so the target lands at 135° in the turret frame (center of [90°, 180°])
+            // Rotate so the target lands at 135° in the turret frame (center of [90°,
+            // 180°])
             Rotation2d goalHeading = Rotation2d.fromDegrees(fieldAngleDeg - kTurretRangeCenterDeg);
 
             return rotateInPlaceRequest
-                .withVelocityX(0)
-                .withVelocityY(0)
-                .withTargetDirection(goalHeading);
+                    .withVelocityX(0)
+                    .withVelocityY(0)
+                    .withTargetDirection(goalHeading);
         })
-        .until(() -> {
-            var pose = drivetrain.getState().Pose;
-            TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
-            return solution.isValid;
-        })
-        .withName("RotateIntoTurretRange-" + target);
+                .until(() -> {
+                    var pose = drivetrain.getState().Pose;
+                    TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
+                    return solution.isValid;
+                })
+                .withTimeout(4)
+                .withName("RotateIntoTurretRange-" + target);
     }
 
     /**
@@ -96,30 +100,60 @@ public class GameCommands {
      */
     public Command aimAndShootCommand(TurretUtil.TargetType target) {
         return Commands.parallel(
-            // Continuously track the target with yaw-rate feedforward
-            turret.autoAimCommand(
-                () -> drivetrain.getState().Pose,
-                target,
-                () -> drivetrain.getState().Speeds.omegaRadiansPerSecond
-            ),
-            // Wait for the turret to settle, then run the shooter at the lookup-table speed
-            Commands.waitUntil(() -> Math.abs(turret.getErrorDegrees()) < kTurretAlignToleranceDeg)
-                .andThen(Commands.run(() -> {
-                    var pose = drivetrain.getState().Pose;
-                    TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
-                    if (solution.isValid) {
-                        spindexer.clockwise(0.5);
-                        shooter.setVelocity(solution.shooterSpeedRPS);
-                        xboxController.setRumble(RumbleType.kBothRumble, 0);
-                    }
-                    else
-                    {
-                        // System.out.println("");
-                        xboxController.setRumble(RumbleType.kBothRumble, 1);
-                    }
-                }, shooter, spindexer))
-                .finallyDo(__ -> { shooter.stop(); spindexer.stop(); xboxController.setRumble(RumbleType.kBothRumble, 0); })
-        ).withName("AimAndShoot-" + target);
+                // Continuously track the target with yaw-rate feedforward
+                turret.autoAimCommand(
+                        () -> drivetrain.getState().Pose,
+                        () -> target,
+                        () -> drivetrain.getState().Speeds.omegaRadiansPerSecond),
+                // Wait for the turret to settle, then run the shooter at the lookup-table speed
+                Commands.waitUntil(() -> Math.abs(turret.getErrorDegrees()) < kTurretAlignToleranceDeg)
+                        .andThen(Commands.run(() -> {
+                            var pose = drivetrain.getState().Pose;
+                            TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
+                            if (solution.isValid) {
+                                spindexer.clockwise(0.5);
+                                shooter.setVelocity(solution.shooterSpeedRPS);
+                                xboxController.setRumble(RumbleType.kBothRumble, 0);
+                            } else {
+                                // System.out.println("");
+                                xboxController.setRumble(RumbleType.kBothRumble, 1);
+                            }
+                        }, shooter, spindexer))
+                        .finallyDo(__ -> {
+                            shooter.stop();
+                            spindexer.stop();
+                            xboxController.setRumble(RumbleType.kBothRumble, 0);
+                        }))
+                .withName("AimAndShoot-" + target);
+    }
+
+    public Command shootWithoutAngleCheckCommand(TurretUtil.TargetType target) {
+        return Commands.run(() -> {
+            var pose = drivetrain.getState().Pose;
+            TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
+            spindexer.clockwise(0.5);
+            shooter.setVelocity(solution.shooterSpeedRPS);
+            xboxController.setRumble(RumbleType.kBothRumble, 0);
+            
+        }, shooter, spindexer)
+                .finallyDo(__ -> {
+                    shooter.stop();
+                    spindexer.stop();
+                    xboxController.setRumble(RumbleType.kBothRumble, 0);
+                })
+                .withName("AimAndShoot-" + target);
+    }
+
+    public Command shootAtSpeedWithoutAngleCheckCommand(double RPS) {
+        return Commands.run(() -> {
+            spindexer.clockwise(0.5);
+            shooter.setVelocity(RPS);
+        }, shooter, spindexer)
+                .finallyDo(__ -> {
+                    shooter.stop();
+                    spindexer.stop();
+                    xboxController.setRumble(RumbleType.kBothRumble, 0);
+                });
     }
 
     /**
@@ -131,13 +165,11 @@ public class GameCommands {
     public Command shootAtHubCommand() {
         // getAllianceHub() is evaluated lazily (at command execution time) so the
         // alliance is already set by the time the command actually runs.
-        Supplier<Translation2d> hub =
-            () -> FieldConstants.getAllianceHub().toTranslation2d();
+        Supplier<Translation2d> hub = () -> FieldConstants.getAllianceHub().toTranslation2d();
 
         return Commands.sequence(
-            rotateIntoRangeCommand(TurretUtil.TargetType.HUB, hub),
-            aimAndShootCommand(TurretUtil.TargetType.HUB)
-        ).withName("ShootAtHub");
+                rotateIntoRangeCommand(TurretUtil.TargetType.HUB, hub).withTimeout(4),
+                aimAndShootCommand(TurretUtil.TargetType.HUB)).withName("ShootAtHub");
     }
 
     /**
@@ -147,61 +179,56 @@ public class GameCommands {
      * to a shot. Runs until cancelled.
      */
     public Command autoShootAtHubCommand() {
-        Supplier<Translation2d> hub =
-            () -> FieldConstants.getAllianceHub().toTranslation2d();
+        Supplier<Translation2d> hub = () -> FieldConstants.getAllianceHub().toTranslation2d();
 
         return Commands.sequence(
-            rotateIntoRangeCommand(TurretUtil.TargetType.HUB, hub),
-            // Start aiming while we wait for vision to settle
-            Commands.parallel(
-                turret.autoAimCommand(
-                    () -> drivetrain.getState().Pose,
-                    TurretUtil.TargetType.HUB,
-                    () -> drivetrain.getState().Speeds.omegaRadiansPerSecond
-                ),
-                Commands.sequence(
-                    // Wait 2 seconds for Limelight vision to refine pose
-                    Commands.waitSeconds(2.0),
-                    // Then wait for turret alignment and shoot
-                    Commands.waitUntil(() -> Math.abs(turret.getErrorDegrees()) < kTurretAlignToleranceDeg),
-                    Commands.run(() -> {
-                        var pose = drivetrain.getState().Pose;
-                        TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(
-                            pose, TurretUtil.TargetType.HUB);
-                        if (solution.isValid) {
-                            spindexer.clockwise(0.5);
-                            shooter.setVelocity(solution.shooterSpeedRPS);
-                        }
-                    }, shooter, spindexer)
-                    .finallyDo(__ -> { shooter.stop(); spindexer.stop(); })
-                )
-            )
-        ).withName("AutoShootAtHub");
+                rotateIntoRangeCommand(TurretUtil.TargetType.HUB, hub),
+                // Start aiming while we wait for vision to settle
+                Commands.parallel(
+                        turret.autoAimCommand(
+                                () -> drivetrain.getState().Pose,
+                                () -> TurretUtil.TargetType.HUB,
+                                () -> drivetrain.getState().Speeds.omegaRadiansPerSecond),
+                        Commands.sequence(
+                                // Wait 2 seconds for Limelight vision to refine pose
+                                Commands.waitSeconds(2.0),
+                                // Then wait for turret alignment and shoot
+                                Commands.waitUntil(() -> Math.abs(turret.getErrorDegrees()) < kTurretAlignToleranceDeg),
+                                Commands.run(() -> {
+                                    var pose = drivetrain.getState().Pose;
+                                    TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(
+                                            pose, TurretUtil.TargetType.HUB);
+                                    if (solution.isValid) {
+                                        spindexer.clockwise(0.5);
+                                        shooter.setVelocity(solution.shooterSpeedRPS);
+                                    }
+                                }, shooter, spindexer)
+                                        .finallyDo(__ -> {
+                                            shooter.stop();
+                                            spindexer.stop();
+                                        }))))
+                .withName("AutoShootAtHub");
     }
 
     /**
      * Same structure as shootAtHubCommand but targets the left pass location.
      */
     public Command passLeftCommand() {
-        Supplier<Translation2d> target =
-            () -> FieldConstants.leftPassTarget.getTranslation().toTranslation2d();
+        Supplier<Translation2d> target = () -> FieldConstants.leftPassTarget.getTranslation().toTranslation2d();
 
         return Commands.sequence(
-            rotateIntoRangeCommand(TurretUtil.TargetType.LEFT_PASS, target),
-            aimAndShootCommand(TurretUtil.TargetType.LEFT_PASS)
-        ).withName("PassLeft");
+                rotateIntoRangeCommand(TurretUtil.TargetType.LEFT_PASS, target),
+                aimAndShootCommand(TurretUtil.TargetType.LEFT_PASS)).withName("PassLeft");
     }
 
     /**
      * Same structure as shootAtHubCommand but targets the right pass location.
      */
     public Command passRightCommand() {
-        Supplier<Translation2d> target =
-            () -> FieldConstants.rightPassTarget.getTranslation().toTranslation2d();
+        Supplier<Translation2d> target = () -> FieldConstants.rightPassTarget.getTranslation().toTranslation2d();
 
         return Commands.sequence(
-            rotateIntoRangeCommand(TurretUtil.TargetType.RIGHT_PASS, target),
-            aimAndShootCommand(TurretUtil.TargetType.RIGHT_PASS)
-        ).withName("PassRight");
+                rotateIntoRangeCommand(TurretUtil.TargetType.RIGHT_PASS, target),
+                aimAndShootCommand(TurretUtil.TargetType.RIGHT_PASS)).withName("PassRight");
     }
 }

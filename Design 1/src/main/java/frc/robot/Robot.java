@@ -31,7 +31,7 @@ public class Robot extends TimedRobot {
 
     @Override
     public void disabledInit() {
-        // CommandScheduler.getInstance().cancelAll();
+        // m_robotContainer.cancelAllScheduled();
     }
 
     @Override
@@ -40,14 +40,19 @@ public class Robot extends TimedRobot {
     @Override
     public void disabledExit() {}
 
+    Command scheduledAuto;
+
     @Override
     public void autonomousInit() {
+        // m_robotContainer.configBinds();
+
         m_robotContainer.drivetrain.resetPose(m_robotContainer.getStartingPose());
 
         m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
         if (m_autonomousCommand != null) {
             CommandScheduler.getInstance().schedule(m_autonomousCommand);
+            scheduledAuto = m_autonomousCommand;
         }
     }
 
@@ -55,11 +60,18 @@ public class Robot extends TimedRobot {
     public void autonomousPeriodic() {}
 
     @Override
-    public void autonomousExit() {}
+    public void autonomousExit()
+    {
+        if (scheduledAuto != null)
+        {
+            CommandScheduler.getInstance().cancel(scheduledAuto);
+        }
+    }
 
 
     @Override
     public void teleopInit() {
+        // m_robotContainer.configBinds();
     }
 
 
@@ -88,7 +100,7 @@ public class Robot extends TimedRobot {
 
     @Override
     public void testInit() {
-        CommandScheduler.getInstance().cancelAll();
+        // m_robotContainer.cancelAllScheduled();
     }
 
     @Override
@@ -100,3 +112,4 @@ public class Robot extends TimedRobot {
     @Override
     public void simulationPeriodic() {}
 }
+ 

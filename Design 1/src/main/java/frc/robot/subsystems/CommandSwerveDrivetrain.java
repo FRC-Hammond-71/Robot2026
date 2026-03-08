@@ -80,6 +80,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private StructPublisher<Pose2d> blehPublisher = NetworkTableInstance.getDefault()
             .getStructTopic("ll_Bruh", Pose2d.struct).publish();
 
+    private StructPublisher<Pose2d> turretDirectionPublisher = NetworkTableInstance.getDefault()
+            .getStructTopic("SmartDashboard/turretPose", Pose2d.struct).publish();
+
     // private StructPublisher<Pose2d> llStablePosePublisher =
     // NetworkTableInstance.getDefault()
     // .getStructTopic("ll_StablePose", Pose2d.struct).publish();
@@ -264,8 +267,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     // Consumer of ChassisSpeeds and feedforwards to drive the robot
                     (speeds, feedforwards) -> setControl(
                             m_pathApplyRobotSpeeds.withSpeeds(ChassisSpeeds.discretize(speeds, 0.020))
-                                    .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
-                                    .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())),
+                                    // .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
+                                    // .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())
+                                    ),
                     new PPHolonomicDriveController(
                             // PID constants for translation
                             new PIDConstants(10, 0, 0),
