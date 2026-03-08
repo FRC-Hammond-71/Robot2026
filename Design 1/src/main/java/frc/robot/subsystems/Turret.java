@@ -32,6 +32,8 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.util.dashboard.TurretUtil;
+import edu.wpi.first.wpilibj.DriverStatiON
+
 
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
@@ -247,10 +249,20 @@ public class Turret extends SubsystemBase {
    * @param robotHeading The current robot heading
    * @return Robot-relative angle in [0°, 360°), directly comparable to turret motor range [90°, 270°]
    */
+
   public static double fieldToRobotRelativeDegrees(Rotation2d fieldAngle, Rotation2d robotHeading) {
-    double deg = fieldAngle.minus(robotHeading).getDegrees(); // (-180°, 180°]
-    return deg < 0 ? deg + 360.0 : deg;                      // [0°, 360°)
-  }
+   //WORKS ON BLUE
+    //double deg = fieldAngle.minus(robotHeading).getDegrees(); // (-180°, 180°]
+    //return deg < 0 ? deg + 360.0 : deg;                      // [0°, 360°)
+
+    
+    if (DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red) {
+        fieldAngle = new Rotation2d(Math.PI - fieldAngle.getRadians());
+    }
+    double deg = fieldAngle.minus(robotHeading).getDegrees();
+    return deg < 0 ? deg + 360.0 : deg;
+}
+
 
   /**
    * Get the current velocity in rotations per second.
