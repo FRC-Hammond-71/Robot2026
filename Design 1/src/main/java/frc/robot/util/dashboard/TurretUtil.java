@@ -225,4 +225,17 @@ public class TurretUtil {
             degrees += 360.0;
         return degrees;
     }
+    // DAY 2 FIX PRIORITY 1 - COMMENT OUT ABOVE METHOD AND UNCOMMENT BELOW
+// PRIMARY MATCH FAILURE CAUSE - normalizes to [0,360) but turret only
+// accepts [90,270). Robot facing hub computes ~29° which gets rejected,
+// turret holds at 180° toward driver station instead.
+// private static double normalizeDegrees(double degrees) {
+//     double min = Constants.Turret.kMinAngleDegrees; // 90
+//     double max = Constants.Turret.kMaxAngleDegrees; // 270
+//     double range = max - min;                        // 180
+//     degrees = degrees % 360.0;
+//     while (degrees < min) degrees += range;
+//     while (degrees >= max) degrees -= range;
+//     return degrees;
+// }
 }
