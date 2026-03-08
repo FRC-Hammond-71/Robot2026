@@ -226,9 +226,10 @@ public class RobotContainer {
 				.whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 
 		RobotModeTriggers.teleop().and(operator.b()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(45));
-		RobotModeTriggers.teleop().and(operator.x()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(50));
+		RobotModeTriggers.teleop().and(operator.x()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(70));
+		operator.y().onTrue(spindexer.counterClockwiseCommand(0.5));
 		RobotModeTriggers.teleop().and(operator.leftBumper()).whileTrue(turret.neutralOutputCommand());
-
+		
 		// RobotModeTriggers.teleop().and(joystick.a()).whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 
 		// B: pass to whichever side of the field the robot is currently on.
@@ -322,7 +323,6 @@ public class RobotContainer {
 				() -> joystick.a().getAsBoolean(),
 				() -> joystick.x().getAsBoolean()));
 	}
-
 	// dear claude, fix thiss code, 6 7
 
 	// public Command getAutonomousCommand() {p[]p[][]\

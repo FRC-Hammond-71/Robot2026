@@ -33,6 +33,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.util.dashboard.TurretUtil;
 
+import java.nio.channels.Pipe.SourceChannel;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
@@ -390,11 +391,12 @@ public class Turret extends SubsystemBase {
         double ffVolts = kV * turretVelRotPerSec;
         setRobotRelativeAngle(solution.robotRelativeAngleDegrees, ffVolts);
 
-        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", true);
+        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", solution.isValid);
+        
       }
       else
       {
-        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", false);
+        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", solution.isValid);
       }
 
     }).withName("AutoAim-" + target.toString());
@@ -425,4 +427,7 @@ public class Turret extends SubsystemBase {
 
     setRobotRelativeAngle(angleSetpoint);
   }
+
+  
+  
 }

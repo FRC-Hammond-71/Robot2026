@@ -170,6 +170,8 @@ public class TurretUtil {
 
         var params = getTableParams(dist, target);
 
+        SmartDashboard.putNumber("Turret Position", robotRelativeAngle);
+
         boolean valid = isWithinShootingRange(dist) && isTurretAngleReachable(robotRelativeAngle);
 
         return new ShotSolution(
