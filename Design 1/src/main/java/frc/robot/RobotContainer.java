@@ -222,10 +222,12 @@ public class RobotContainer {
 		// turret.setDefaultCommand(Commands.run(() -> turret.setAngle(180), turret));
 
 		// RobotModeTriggers.teleop().and(operator.a()).whileTrue(gameCommands.shootWithoutAngleCheckCommand(TargetType.HUB));
-		RobotModeTriggers.teleop().and(operator.a()).whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
+		RobotModeTriggers.teleop().and(operator.a()).and(operator.leftBumper().negate())
+				.whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 
 		RobotModeTriggers.teleop().and(operator.b()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(45));
-		RobotModeTriggers.teleop().and(operator.x()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(57.5));
+		RobotModeTriggers.teleop().and(operator.x()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(50));
+		RobotModeTriggers.teleop().and(operator.leftBumper()).whileTrue(turret.neutralOutputCommand());
 
 		// RobotModeTriggers.teleop().and(joystick.a()).whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 

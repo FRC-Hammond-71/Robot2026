@@ -13,6 +13,7 @@ import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.NeutralOut;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -71,6 +72,7 @@ public class Turret extends SubsystemBase {
 
   // Motor controller
   private final TalonFX motor;
+  private final NeutralOut neutralOutRequest;
   private final PositionVoltage positionRequest;
   private final StatusSignal<Angle> positionSignal;
   private final StatusSignal<AngularVelocity> velocitySignal;
@@ -92,6 +94,7 @@ public class Turret extends SubsystemBase {
     motor = new TalonFX(canID);
 
     // Create control requests
+    neutralOutRequest = new NeutralOut();
     positionRequest = new PositionVoltage(0).withSlot(0);
 
     // get status signals
@@ -346,6 +349,13 @@ public class Turret extends SubsystemBase {
    */
   public Command stopCommand() {
     return runOnce(() -> setRobotRelativeAngle(getRobotRelativeAngleDegrees()));
+  }
+
+  /**
+   * Creates a command that applies neutral output (no commanded motion).
+   */
+  public Command neutralOutputCommand() {
+    return run(() -> motor.setControl(neutralOutRequest));
   }
 
   /**
