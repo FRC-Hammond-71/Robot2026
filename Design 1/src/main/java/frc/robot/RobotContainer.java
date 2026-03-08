@@ -84,7 +84,7 @@ public class RobotContainer {
 	private boolean wasRotating = true; // start true so first loop captures actual heading
 	private final Telemetry logger = new Telemetry(Constants.Drivetrain.kCruiseSpeed);
 	private final CommandXboxController joystick = new CommandXboxController(0);
-	private final CommandXboxController operator = new CommandXboxController(0);
+	private final CommandXboxController operator = new CommandXboxController(1);
 	public final CommandSwerveDrivetrain drivetrain = new CommandSwerveDrivetrain(
 			turret.getPositionSignal(),
 			TunerConstants.DrivetrainConstants,
