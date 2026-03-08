@@ -4,6 +4,7 @@ import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
@@ -51,9 +52,14 @@ public class Telemetry {
     private final DoublePublisher driveTimestamp = driveStateTable.getDoubleTopic("Timestamp").publish();
     private final DoublePublisher driveOdometryFrequency = driveStateTable.getDoubleTopic("OdometryFrequency").publish();
 
+    /* Turret field-space heading (robot translation + turret field heading) */
+    private final StructPublisher<Pose2d> turretFieldPose = driveStateTable.getStructTopic("Turret/FieldPose", Pose2d.struct).publish();
+    private Rotation2d m_turretFieldHeading = Rotation2d.kZero;
+
     /* Robot pose for field positioning */
     private final NetworkTable table = inst.getTable("Pose");
     private final DoubleArrayPublisher fieldPub = table.getDoubleArrayTopic("robotPose").publish();
+    private final DoubleArrayPublisher turretFieldPub = table.getDoubleArrayTopic("turretPose").publish();
     private final StringPublisher fieldTypePub = table.getStringTopic(".type").publish();
 
     /* Mechanisms to represent the swerve module states */
@@ -84,6 +90,11 @@ public class Telemetry {
 
     private final double[] m_poseArray = new double[3];
 
+    /** Set the current turret angle in robot-relative degrees (0° = robot forward, CCW+). */
+    public void setTurretHeadingField(Rotation2d angleDegrees) {
+        m_turretFieldHeading = angleDegrees;
+    }
+
     /** Accept the swerve drive state and telemeterize it to SmartDashboard and SignalLogger. */
     public void telemeterize(SwerveDriveState state) {
         /* Telemeterize the swerve drive state */
@@ -110,6 +121,12 @@ public class Telemetry {
         m_poseArray[1] = state.Pose.getY();
         m_poseArray[2] = state.Pose.getRotation().getDegrees();
         fieldPub.set(m_poseArray);
+
+        /* Telemeterize turret field-space heading (robot translation + turret field heading) */
+        // Rotation2d turretFieldHeading = state.Pose.getRotation().plus(Rotation2d.fromDegrees(m_turretRobotRelativeDegrees));
+        Pose2d turretPose = new Pose2d(state.Pose.getTranslation(), m_turretFieldHeading);
+        turretFieldPose.set(turretPose);
+        // turretFieldPub.set(new double[] { turretPose.getX(), turretPose.getY(), turretFieldHeading.getDegrees() });
 
         /* Telemeterize each module state to a Mechanism2d */
         for (int i = 0; i < 4; ++i) {

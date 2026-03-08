@@ -218,9 +218,11 @@ public class RobotContainer {
 						() -> drivetrain.getState().Pose,
 						() -> currentTurretTarget,
 						() -> drivetrain.getState().Speeds.omegaRadiansPerSecond));
+						
 		// turret.setDefaultCommand(Commands.run(() -> turret.setAngle(180), turret));
 
-		RobotModeTriggers.teleop().and(operator.a()).whileTrue(gameCommands.shootWithoutAngleCheckCommand(TargetType.HUB));
+		// RobotModeTriggers.teleop().and(operator.a()).whileTrue(gameCommands.shootWithoutAngleCheckCommand(TargetType.HUB));
+		RobotModeTriggers.teleop().and(operator.a()).whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 
 		RobotModeTriggers.teleop().and(operator.b()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(45));
 		RobotModeTriggers.teleop().and(operator.x()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(57.5));
@@ -241,19 +243,19 @@ public class RobotContainer {
 		joystick.start().onTrue(drivetrain.runOnce(() -> {
 			drivetrain.seedFieldCentric();
 
-			lastHeading = Rotation2d.kZero;
-			wasRotating = true;
+			// lastHeading = Rotation2d.kZero;
+			// wasRotating = true;
 		}));
 
 		joystick.rightBumper().onTrue(intake.toggleExtensionCommand());
 
-//#region TEST
-//#endregion
-
 		configureTestBindingsForShooterTuning();
 		configureTestBindingsForManualShootingAndTurret();
 
-		drivetrain.registerTelemetry(logger::telemeterize);
+		drivetrain.registerTelemetry(state -> {
+			logger.setTurretHeadingField(turret.getDesiredHeadingFieldRelative(state.Pose.getRotation()));
+			logger.telemeterize(state);
+		});
 	}
 
 	private void configureTestBindingsForManualShootingAndTurret() {
@@ -290,9 +292,9 @@ public class RobotContainer {
 		// 				() -> FieldConstants.getAllianceHub().toTranslation2d()));
 
 		// POV: manual turret angle control
-		RobotModeTriggers.test().and(joystick.pov(270)).whileTrue(Commands.run(() -> turret.setAngle(90), turret));
-		RobotModeTriggers.test().and(joystick.pov(180)).whileTrue(Commands.run(() -> turret.setAngle(180), turret));
-		RobotModeTriggers.test().and(joystick.pov(90)).whileTrue(Commands.run(() -> turret.setAngle(270), turret));
+		RobotModeTriggers.test().and(joystick.pov(270)).whileTrue(Commands.run(() -> turret.setRobotRelativeAngle(90), turret));
+		RobotModeTriggers.test().and(joystick.pov(180)).whileTrue(Commands.run(() -> turret.setRobotRelativeAngle(180), turret));
+		RobotModeTriggers.test().and(joystick.pov(90)).whileTrue(Commands.run(() -> turret.setRobotRelativeAngle(270), turret));
 
 		// Y: reset turret encoder
 		// joystick.y().onTrue(Commands.runOnce(() -> turret.resetAngle(), drivetrain));

@@ -20,6 +20,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.*;
@@ -36,7 +37,8 @@ import java.util.function.Supplier;
 
 /**
  * Turret subsystem using TalonFX with Krakenx60 motor.
- * All angles are in degrees relative to robot forward (0 = forward, + = left, - = right).
+ * All angles are robot-relative degrees (0° = robot forward, + = left/CCW, - = right/CW).
+ * Physical range: [90°, 270°]. Origin (startup position) = 180°.
  */
 public class Turret extends SubsystemBase {
 
@@ -77,7 +79,7 @@ public class Turret extends SubsystemBase {
   private final StatusSignal<Temperature> temperatureSignal;
 
   // Target tracking for telemetry
-  private double targetAngleDegrees = Constants.Turret.kOriginAngle.in(Degrees);
+  private double targetRobotRelativeDegrees = Constants.Turret.kOriginAngle.in(Degrees);
 
   // Simulation
   private final SingleJointedArmSim pivotSim;
@@ -151,11 +153,12 @@ public class Turret extends SubsystemBase {
       Units.degreesToRadians(0) // Starting position (rad)
     );
 
-    this.resetAngle();
+    this.resetRobotRelativeAngle();
   }
 
   @Override
   public void periodic() {
+    
     BaseStatusSignal.refreshAll(
       positionSignal,
       velocitySignal,
@@ -164,12 +167,17 @@ public class Turret extends SubsystemBase {
       temperatureSignal
     );
 
-    SmartDashboard.putNumber("Turret/CurrentAngle", getAngle());
-    SmartDashboard.putNumber("Turret/DesiredAngle", targetAngleDegrees);
-    SmartDashboard.putNumber("Turret/ErrorAngle", getErrorDegrees());
+    // SmartDashboard.putNumber("Turret/CurrentAngle", getRobotRelativeAngleDegrees());
+    // SmartDashboard.putNumber("Turret/DesiredAngle", targetRobotRelativeDegrees);
+    // SmartDashboard.putNumber("Turret/ErrorAngle", getErrorDegrees());
   }
 
-  public void resetAngle()
+  public Rotation2d getDesiredHeadingFieldRelative(Rotation2d robotHeading)
+  {
+    return robotHeading.plus(Rotation2d.fromDegrees(targetRobotRelativeDegrees));
+  }
+
+  public void resetRobotRelativeAngle()
   {
     this.motor.setPosition(Constants.Turret.kOriginAngle);
   }
@@ -212,11 +220,33 @@ public class Turret extends SubsystemBase {
   }
 
   /**
-   * Get the turret angle in degrees relative to robot forward.
-   * @return Angle in degrees (0 = forward, + = left, - = right)
+   * Get the turret angle in robot-relative degrees.
+   * @return Angle in degrees (0° = robot forward, + = left/CCW, range [90°, 270°])
    */
-  public double getAngle() {
+  public double getRobotRelativeAngleDegrees() {
     return positionSignal.getValue().in(Degrees);
+  }
+
+  /**
+   * Get the turret's field-relative heading in degrees.
+   * Field heading = robot heading + turret robot-relative angle.
+   * @param robotHeading The current robot heading on the field
+   * @return Field-relative turret heading in degrees
+   */
+  public double getFieldRelativeAngleDegrees(Rotation2d robotHeading) {
+    return robotHeading.plus(Rotation2d.fromDegrees(getRobotRelativeAngleDegrees())).getDegrees();
+  }
+
+  /**
+   * Convert a field-relative angle to robot-relative turret degrees [0°, 360°).
+   * Uses Rotation2d subtraction for correct circular arithmetic.
+   * @param fieldAngle  The field-relative direction (e.g. angle to target)
+   * @param robotHeading The current robot heading
+   * @return Robot-relative angle in [0°, 360°), directly comparable to turret motor range [90°, 270°]
+   */
+  public static double fieldToRobotRelativeDegrees(Rotation2d fieldAngle, Rotation2d robotHeading) {
+    double deg = fieldAngle.minus(robotHeading).getDegrees(); // (-180°, 180°]
+    return deg < 0 ? deg + 360.0 : deg;                      // [0°, 360°)
   }
 
   /**
@@ -248,25 +278,25 @@ public class Turret extends SubsystemBase {
   }
 
   /**
-   * Get the target angle in degrees.
+   * Get the target angle in robot-relative degrees.
    */
-  public double getTargetAngleDegrees() {
-    return targetAngleDegrees;
+  public double getTargetRobotRelativeAngleDegrees() {
+    return targetRobotRelativeDegrees;
   }
 
   /**
    * Get the position error in degrees (target - current).
    */
   public double getErrorDegrees() {
-    return targetAngleDegrees - getAngle();
+    return targetRobotRelativeDegrees - getRobotRelativeAngleDegrees();
   }
 
   /**
    * Set turret angle.
    * @param angleDegrees The target angle in degrees (0 = forward)
    */
-  public void setAngle(double angleDegrees) {
-    setAngle(angleDegrees, 0);
+  public void setRobotRelativeAngle(double angleDegrees) {
+    setRobotRelativeAngle(angleDegrees, 0);
   }
 
   /**
@@ -274,12 +304,12 @@ public class Turret extends SubsystemBase {
    * @param angleDegrees The target angle in degrees (0 = forward)
    * @param feedForwardVolts Extra voltage to apply (e.g. yaw-rate compensation)
    */
-  public void setAngle(double angleDegrees, double feedForwardVolts) {
+  public void setRobotRelativeAngle(double angleDegrees, double feedForwardVolts) {
     if (!Constants.Turret.kTurretEnabled) {
       return;
     }
 
-    this.targetAngleDegrees = angleDegrees;
+    this.targetRobotRelativeDegrees = angleDegrees;
 
     // Convert degrees to motor rotations, accounting for the 180° origin offset
     double positionRotations = Units.degreesToRotations(angleDegrees);
@@ -298,24 +328,24 @@ public class Turret extends SubsystemBase {
    * Creates a command to set the turret to a specific angle.
    * @param angleDegrees The target angle in degrees
    */
-  public Command setAngleCommand(double angleDegrees) {
-    return runOnce(() -> setAngle(angleDegrees));
+  public Command setRobotRelativeAngleCommand(double angleDegrees) {
+    return runOnce(() -> setRobotRelativeAngle(angleDegrees));
   }
 
   /**
    * Creates a command to move the turret to a specific angle using position control.
    * @param angleDegrees The target angle in degrees
    */
-  public Command moveToAngleCommand(double angleDegrees) {
-    return run(() -> setAngle(angleDegrees))
-      .until(() -> Math.abs(angleDegrees - getAngle()) < 2.0);
+  public Command moveToRobotRelativeAngleCommand(double angleDegrees) {
+    return run(() -> setRobotRelativeAngle(angleDegrees))
+      .until(() -> Math.abs(angleDegrees - getRobotRelativeAngleDegrees()) < 2.0);
   }
 
   /**
    * Creates a command to hold the turret at its current position.
    */
   public Command stopCommand() {
-    return runOnce(() -> setAngle(getAngle()));
+    return runOnce(() -> setRobotRelativeAngle(getRobotRelativeAngleDegrees()));
   }
 
   /**
@@ -348,7 +378,7 @@ public class Turret extends SubsystemBase {
         double omega = robotOmegaRadPerSec.getAsDouble();
         double turretVelRotPerSec = -omega / (2.0 * Math.PI);
         double ffVolts = kV * turretVelRotPerSec;
-        setAngle(solution.turretAngleDegrees, ffVolts);
+        setRobotRelativeAngle(solution.robotRelativeAngleDegrees, ffVolts);
 
         SmartDashboard.putBoolean("Turret/AutoAim/IsValid", true);
       }
@@ -383,6 +413,6 @@ public class Turret extends SubsystemBase {
 
     motor.getConfigurator().apply(slot0);
 
-    setAngle(angleSetpoint);
+    setRobotRelativeAngle(angleSetpoint);
   }
 }

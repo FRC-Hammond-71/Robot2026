@@ -35,7 +35,7 @@ public class Intake extends SubsystemBase {
         TalonFXConfiguration intakeConfig = new TalonFXConfiguration();
         intakeConfig.CurrentLimits.StatorCurrentLimit = Constants.Intake.kStatorCurrentLimit;
         intakeConfig.CurrentLimits.StatorCurrentLimitEnable = true;
-        intakeConfig.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+        intakeConfig.MotorOutput.NeutralMode = NeutralModeValue.Coast;
         m_intakeMotor.getConfigurator().apply(intakeConfig);
 
         // NEO extension config — gear ratio applied as position conversion factor

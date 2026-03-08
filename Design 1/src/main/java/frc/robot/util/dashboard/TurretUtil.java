@@ -7,6 +7,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants;
 import frc.robot.generated.FieldConstants;
+import frc.robot.subsystems.Turret;
 
 /**
  * Utility class for turret targeting calculations.
@@ -33,17 +34,17 @@ public class TurretUtil {
     /** Immutable snapshot of everything needed to execute a shot. */
     public static class ShotSolution {
         public final double distanceMeters; // Turret-to-target distance (m)
-        public final double turretAngleDegrees; // Required turret angle relative to robot heading (°)
+        public final double robotRelativeAngleDegrees; // Required turret angle relative to robot heading (°)
         public final double trajectoryAngleDegrees; // Pivot / hood angle from lookup table (°)
         public final double shooterSpeedRPS; // Flywheel speed from lookup table (RPS)
         public final double timeOfFlightSeconds; // Ball time-of-flight from lookup table (s)
         public final boolean isValid; // True if shot is within range & turret limits
 
-        public ShotSolution(double distanceMeters, double turretAngleDegrees,
+        public ShotSolution(double distanceMeters, double robotRelativeAngleDegrees,
                 double trajectoryAngleDegrees, double shooterSpeedRPS,
                 double timeOfFlightSeconds, boolean isValid) {
             this.distanceMeters = distanceMeters;
-            this.turretAngleDegrees = turretAngleDegrees;
+            this.robotRelativeAngleDegrees = robotRelativeAngleDegrees;
             this.trajectoryAngleDegrees = trajectoryAngleDegrees;
             this.shooterSpeedRPS = shooterSpeedRPS;
             this.timeOfFlightSeconds = timeOfFlightSeconds;
@@ -123,15 +124,13 @@ public class TurretUtil {
     }
 
     /**
-     * Turret angle in degrees that the turret must rotate to, relative to the
-     * robot's heading.
-     * 0° = robot forward, positive = counter-clockwise.
+     * Robot-relative turret angle in degrees to aim at the target.
+     * Uses Turret.fieldToRobotRelativeDegrees() — no manual normalization needed.
+     * @return Angle in [0°, 360°), directly comparable to turret motor range [90°, 270°]
      */
-    public static double getTurretAngleDegrees(Pose2d robotPose, TargetType target) {
-        double fieldAngleRad = getFieldAngleToTarget(robotPose, target);
-        double robotHeadingRad = robotPose.getRotation().getRadians();
-        double turretRad = fieldAngleRad - robotHeadingRad;
-        return normalizeDegrees(Math.toDegrees(turretRad));
+    public static double getRobotRelativeAngleDegrees(Pose2d robotPose, TargetType target) {
+        Rotation2d fieldAngle = new Rotation2d(getFieldAngleToTarget(robotPose, target));
+        return Turret.fieldToRobotRelativeDegrees(fieldAngle, robotPose.getRotation());
     }
 
     // =========================
@@ -167,15 +166,15 @@ public class TurretUtil {
      */
     public static ShotSolution computeShotSolution(Pose2d robotPose, TargetType target) {
         double dist = getDistance(robotPose, target);
-        double turretAngle = getTurretAngleDegrees(robotPose, target);
+        double robotRelativeAngle = getRobotRelativeAngleDegrees(robotPose, target);
 
         var params = getTableParams(dist, target);
 
-        boolean valid = isWithinShootingRange(dist) && isTurretAngleReachable(turretAngle);
+        boolean valid = isWithinShootingRange(dist) && isTurretAngleReachable(robotRelativeAngle);
 
         return new ShotSolution(
                 dist,
-                turretAngle,
+                robotRelativeAngle,
                 params.trajectoryAngle,
                 params.shooterSpeed,
                 params.timeOfFlight,
@@ -217,54 +216,4 @@ public class TurretUtil {
                 return hubTable.getParameters(distanceMeters);
         }
     }
-// ORIGINAL CODE - DO NOT DELETE
-// private static double normalizeDegrees(double degrees) {
-//     degrees %= 360.0;
-//     if (degrees < 0)
-//         degrees += 360.0;
-//     return degrees;
-// }
-
-// DAY 2 FIX - ATTEMPT 1 - FAILED: only valid 190°-270°
-// private static double normalizeDegrees(double degrees) {
-//     double min = Constants.Turret.kMinAngleDegrees; // 90
-//     double max = Constants.Turret.kMaxAngleDegrees; // 270
-//     double range = max - min;
-//     degrees = degrees % 360.0;
-//     while (degrees < min) degrees += range;
-//     while (degrees >= max) degrees -= range;
-//     return degrees;
-// }
-
-// DAY 2 FIX - ATTEMPT 2 - FAILED: unverified edge cases
-// private static double normalizeDegrees(double degrees) {
-//     degrees = degrees % 360.0;
-//     if (degrees > 180.0) degrees -= 360.0;
-//     if (degrees <= -180.0) degrees += 360.0;
-//     degrees += Constants.Turret.kOriginAngle.in(Degrees);
-//     if (degrees >= Constants.Turret.kMaxAngleDegrees) degrees -= 180.0;
-//     if (degrees < Constants.Turret.kMinAngleDegrees) degrees += 180.0;
-//     return degrees;
-// }
-
-// DAY 2 FIX - ATTEMPT 3 - ACTIVE
-// Rotation2d.minus() handles circular subtraction correctly
-// MathUtil.inputModulus() handles range normalization reliably
-// normalizeDegrees() is no longer needed - replaced entirely
-// Requires: import edu.wpi.first.math.MathUtil; at top of file
-public static double getTurretAngleDegrees(Pose2d robotPose, TargetType target) {
-    double fieldAngleRad = getFieldAngleToTarget(robotPose, target);
-
-    // Rotation2d.minus() handles circular arithmetic - result always in (-180°, 180°]
-    Rotation2d fieldAngle = new Rotation2d(fieldAngleRad);
-    Rotation2d robotHeading = robotPose.getRotation();
-    double turretDegrees = fieldAngle.minus(robotHeading).getDegrees();
-
-    // Normalize to turret physical range [90°, 270°)
-    return MathUtil.inputModulus(
-        turretDegrees,
-        Constants.Turret.kMinAngleDegrees,  // 90
-        Constants.Turret.kMaxAngleDegrees   // 270
-    );
-
 }
