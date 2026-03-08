@@ -225,33 +225,39 @@ public class TurretUtil {
 //     return degrees;
 // }
 
-// DAY 2 FIX - ATTEMPT 1 - FAILED: only valid between 190° and 270°, missing 90°-190° range
+// DAY 2 FIX - ATTEMPT 1 - FAILED: only valid 190°-270°
 // private static double normalizeDegrees(double degrees) {
 //     double min = Constants.Turret.kMinAngleDegrees; // 90
 //     double max = Constants.Turret.kMaxAngleDegrees; // 270
-//     double range = max - min;                        // 180
+//     double range = max - min;
 //     degrees = degrees % 360.0;
 //     while (degrees < min) degrees += range;
 //     while (degrees >= max) degrees -= range;
 //     return degrees;
 // }
 
-// DAY 2 FIX - ATTEMPT 2 - ACTIVE: normalizes to [-180,180) first then shifts to turret range [90,270)
+// DAY 2 FIX - ATTEMPT 2 - FAILED: unverified edge cases
+// private static double normalizeDegrees(double degrees) {
+//     degrees = degrees % 360.0;
+//     if (degrees > 180.0) degrees -= 360.0;
+//     if (degrees <= -180.0) degrees += 360.0;
+//     degrees += Constants.Turret.kOriginAngle.in(Degrees);
+//     if (degrees >= Constants.Turret.kMaxAngleDegrees) degrees -= 180.0;
+//     if (degrees < Constants.Turret.kMinAngleDegrees) degrees += 180.0;
+//     return degrees;
+// }
+
+// DAY 2 FIX - ATTEMPT 3 - ACTIVE: uses WPILib MathUtil.inputModulus()
+// This is the community standard approach used by top FRC teams.
+// inputModulus correctly wraps any angle into [min, max) in one reliable call.
+// Add this import at the top of TurretUtil.java:
+// import edu.wpi.first.math.MathUtil;
 private static double normalizeDegrees(double degrees) {
-    // Step 1: Normalize to [-180, 180)
-    degrees = degrees % 360.0;
-    if (degrees > 180.0) degrees -= 360.0;
-    if (degrees <= -180.0) degrees += 360.0;
-
-    // Step 2: Shift to turret range by adding origin offset (180°)
-    degrees += Constants.Turret.kOriginAngle.in(Degrees); // adds 180°
-
-    // Step 3: Final boundary check into [90, 270)
-    if (degrees >= Constants.Turret.kMaxAngleDegrees)
-        degrees -= 180.0;
-    if (degrees < Constants.Turret.kMinAngleDegrees)
-        degrees += 180.0;
-
-    return degrees;
+    return MathUtil.inputModulus(
+        degrees,
+        Constants.Turret.kMinAngleDegrees,  // 90
+        Constants.Turret.kMaxAngleDegrees   // 270
+    );
 }
+
 }
