@@ -25,5 +25,14 @@ public class FieldConstants{
     public static Translation3d getAllianceHub() {
         return DriverStation.getAlliance().get() == Alliance.Blue ? BLUE_HUB : RED_HUB;
     }
+    // DAY 2 FIX PRIORITY 2 - COMMENT OUT ABOVE METHOD AND UNCOMMENT BELOW
+// DEFENSIVE FIX - prevents crash or wrong hub if DS connection slow at startup
+// public static Translation3d getAllianceHub() {
+//     var alliance = DriverStation.getAlliance();
+//     if (alliance.isPresent()) {
+//         return alliance.get() == Alliance.Blue ? BLUE_HUB : RED_HUB;
+//     }
+//     return BLUE_HUB;
+// }
 
 }
