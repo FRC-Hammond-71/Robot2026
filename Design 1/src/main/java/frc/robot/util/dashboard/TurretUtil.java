@@ -248,24 +248,23 @@ public class TurretUtil {
 // }
 
 // DAY 2 FIX - ATTEMPT 3 - ACTIVE
-// Uses Rotation2d.minus() for correct circular subtraction
-// then MathUtil.inputModulus() for reliable range normalization
-// Replaces both getTurretAngleDegrees() and normalizeDegrees()
+// Rotation2d.minus() handles circular subtraction correctly
+// MathUtil.inputModulus() handles range normalization reliably
+// normalizeDegrees() is no longer needed - replaced entirely
+// Requires: import edu.wpi.first.math.MathUtil; at top of file
 public static double getTurretAngleDegrees(Pose2d robotPose, TargetType target) {
     double fieldAngleRad = getFieldAngleToTarget(robotPose, target);
-    
-    // Rotation2d.minus() handles circular arithmetic correctly
-    // Result is always in (-180°, 180°] before normalization
+
+    // Rotation2d.minus() handles circular arithmetic - result always in (-180°, 180°]
     Rotation2d fieldAngle = new Rotation2d(fieldAngleRad);
     Rotation2d robotHeading = robotPose.getRotation();
     double turretDegrees = fieldAngle.minus(robotHeading).getDegrees();
-    
-    // Normalize to turret's physical range [90°, 270°)
+
+    // Normalize to turret physical range [90°, 270°)
     return MathUtil.inputModulus(
         turretDegrees,
         Constants.Turret.kMinAngleDegrees,  // 90
         Constants.Turret.kMaxAngleDegrees   // 270
     );
-}
 
 }
