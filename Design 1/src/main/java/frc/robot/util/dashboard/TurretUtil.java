@@ -247,14 +247,22 @@ public class TurretUtil {
 //     return degrees;
 // }
 
-// DAY 2 FIX - ATTEMPT 3 - ACTIVE: uses WPILib MathUtil.inputModulus()
-// This is the community standard approach used by top FRC teams.
-// inputModulus correctly wraps any angle into [min, max) in one reliable call.
-// Add this import at the top of TurretUtil.java:
-// import edu.wpi.first.math.MathUtil;
-private static double normalizeDegrees(double degrees) {
+// DAY 2 FIX - ATTEMPT 3 - ACTIVE
+// Uses Rotation2d.minus() for correct circular subtraction
+// then MathUtil.inputModulus() for reliable range normalization
+// Replaces both getTurretAngleDegrees() and normalizeDegrees()
+public static double getTurretAngleDegrees(Pose2d robotPose, TargetType target) {
+    double fieldAngleRad = getFieldAngleToTarget(robotPose, target);
+    
+    // Rotation2d.minus() handles circular arithmetic correctly
+    // Result is always in (-180°, 180°] before normalization
+    Rotation2d fieldAngle = new Rotation2d(fieldAngleRad);
+    Rotation2d robotHeading = robotPose.getRotation();
+    double turretDegrees = fieldAngle.minus(robotHeading).getDegrees();
+    
+    // Normalize to turret's physical range [90°, 270°)
     return MathUtil.inputModulus(
-        degrees,
+        turretDegrees,
         Constants.Turret.kMinAngleDegrees,  // 90
         Constants.Turret.kMaxAngleDegrees   // 270
     );
