@@ -217,18 +217,15 @@ public class TurretUtil {
                 return hubTable.getParameters(distanceMeters);
         }
     }
+// ORIGINAL CODE - DO NOT DELETE
+// private static double normalizeDegrees(double degrees) {
+//     degrees %= 360.0;
+//     if (degrees < 0)
+//         degrees += 360.0;
+//     return degrees;
+// }
 
-    /** Normalizes an angle to the range [0, 360) degrees. */
-    private static double normalizeDegrees(double degrees) {
-        degrees %= 360.0;
-        if (degrees < 0)
-            degrees += 360.0;
-        return degrees;
-    }
-    // DAY 2 FIX PRIORITY 1 - COMMENT OUT ABOVE METHOD AND UNCOMMENT BELOW
-// PRIMARY MATCH FAILURE CAUSE - normalizes to [0,360) but turret only
-// accepts [90,270). Robot facing hub computes ~29° which gets rejected,
-// turret holds at 180° toward driver station instead.
+// DAY 2 FIX - ATTEMPT 1 - FAILED: only valid between 190° and 270°, missing 90°-190° range
 // private static double normalizeDegrees(double degrees) {
 //     double min = Constants.Turret.kMinAngleDegrees; // 90
 //     double max = Constants.Turret.kMaxAngleDegrees; // 270
@@ -238,4 +235,23 @@ public class TurretUtil {
 //     while (degrees >= max) degrees -= range;
 //     return degrees;
 // }
+
+// DAY 2 FIX - ATTEMPT 2 - ACTIVE: normalizes to [-180,180) first then shifts to turret range [90,270)
+private static double normalizeDegrees(double degrees) {
+    // Step 1: Normalize to [-180, 180)
+    degrees = degrees % 360.0;
+    if (degrees > 180.0) degrees -= 360.0;
+    if (degrees <= -180.0) degrees += 360.0;
+
+    // Step 2: Shift to turret range by adding origin offset (180°)
+    degrees += Constants.Turret.kOriginAngle.in(Degrees); // adds 180°
+
+    // Step 3: Final boundary check into [90, 270)
+    if (degrees >= Constants.Turret.kMaxAngleDegrees)
+        degrees -= 180.0;
+    if (degrees < Constants.Turret.kMinAngleDegrees)
+        degrees += 180.0;
+
+    return degrees;
+}
 }
