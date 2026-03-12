@@ -251,7 +251,16 @@ public class Turret extends SubsystemBase {
 
   public static double fieldToRobotRelativeDegrees(Rotation2d fieldAngle, Rotation2d robotHeading) {
     double deg = fieldAngle.minus(robotHeading).getDegrees(); // (-180°, 180°]
-    return deg < 0 ? deg + 360.0 : deg;                      // [0°, 360°)
+    if(deg < 0) {
+      return deg + 360;
+
+    } if (deg > 360) {
+      return deg - 360;
+
+    } else {
+      return deg;
+    }
+                        // [0°, 360°)
   }
 
   /**
@@ -392,7 +401,7 @@ public class Turret extends SubsystemBase {
       if (DriverStation.getAlliance().get() == Alliance.Blue) {
           setRobotRelativeAngle(solution.robotRelativeAngleDegrees, ffVolts);
         } else {
-          setRobotRelativeAngle(solution.robotRelativeAngleDegrees + 180, ffVolts);
+          setRobotRelativeAngle(solution.robotRelativeAngleDegrees, ffVolts);
         }
       if (solution.isValid) {
         // Feedforward: when robot rotates at ω, turret target moves at -ω in turret frame
