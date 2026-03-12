@@ -250,18 +250,9 @@ public class Turret extends SubsystemBase {
    */
 
   public static double fieldToRobotRelativeDegrees(Rotation2d fieldAngle, Rotation2d robotHeading) {
-   //WORKS ON BLUE
-    //double deg = fieldAngle.minus(robotHeading).getDegrees(); // (-180°, 180°]
-    //return deg < 0 ? deg + 360.0 : deg;                      // [0°, 360°)
-
-    
-    // if (DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red) {
-    //     fieldAngle = new Rotation2d(Math.PI - fieldAngle.getRadians());
-    // }
-    double deg = fieldAngle.minus(robotHeading).getDegrees();
-    return deg < 0 ? deg + 360.0 : deg;
-}
-
+    double deg = fieldAngle.minus(robotHeading).getDegrees(); // (-180°, 180°]
+    return deg < 0 ? deg + 360.0 : deg;                      // [0°, 360°)
+  }
 
   /**
    * Get the current velocity in rotations per second.
@@ -443,5 +434,4 @@ public class Turret extends SubsystemBase {
 
     setRobotRelativeAngle(angleSetpoint);
   }
-  
 }
