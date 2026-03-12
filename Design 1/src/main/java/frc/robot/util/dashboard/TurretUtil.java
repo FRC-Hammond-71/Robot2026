@@ -170,6 +170,8 @@ public class TurretUtil {
 
         var params = getTableParams(dist, target);
 
+        SmartDashboard.putNumber("Turret Position", robotRelativeAngle);
+
         boolean valid = isWithinShootingRange(dist) && isTurretAngleReachable(robotRelativeAngle);
 
         return new ShotSolution(
@@ -187,13 +189,13 @@ public class TurretUtil {
 
     /** True if the distance is within the lookup-table range. */
     public static boolean isWithinShootingRange(double distanceMeters) {
-        return distanceMeters >= Constants.Turret.kMinShootingDistance
-                && distanceMeters <= Constants.Turret.kMaxShootingDistance;
+        return distanceMeters >= Constants.Turret.kMinShootingDistance && distanceMeters <= Constants.Turret.kMaxShootingDistance;
     }
 
     /** True if the turret can physically reach the requested angle. */
     public static boolean isTurretAngleReachable(double angleDegrees) {
-        SmartDashboard.putNumber("BLEHH", angleDegrees);
+        SmartDashboard.putNumber("Requested Angle", angleDegrees);
+        //please keep the smartdashboard keys relevant 
         return angleDegrees >= Constants.Turret.kMinAngleDegrees
                 && angleDegrees <= Constants.Turret.kMaxAngleDegrees;
     }

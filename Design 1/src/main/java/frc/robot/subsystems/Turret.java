@@ -13,6 +13,7 @@ import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.NeutralOut;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -31,7 +32,10 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.util.dashboard.TurretUtil;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 
+import java.nio.channels.Pipe.SourceChannel;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
@@ -60,7 +64,6 @@ public class Turret extends SubsystemBase {
   private final double statorCurrentLimit = Constants.Turret.kStatorCurrentLimit;
   private final boolean enableSupplyLimit = Constants.Turret.kEnableSupplyLimit;
   private final double supplyCurrentLimit = Constants.Turret.kSupplyCurrentLimit;
-
   // Feedforward
   private final ArmFeedforward feedforward = new ArmFeedforward(
     kS, // kS
@@ -71,6 +74,7 @@ public class Turret extends SubsystemBase {
 
   // Motor controller
   private final TalonFX motor;
+  private final NeutralOut neutralOutRequest;
   private final PositionVoltage positionRequest;
   private final StatusSignal<Angle> positionSignal;
   private final StatusSignal<AngularVelocity> velocitySignal;
@@ -92,8 +96,8 @@ public class Turret extends SubsystemBase {
     motor = new TalonFX(canID);
 
     // Create control requests
+    neutralOutRequest = new NeutralOut();
     positionRequest = new PositionVoltage(0).withSlot(0);
-
     // get status signals
     positionSignal = motor.getPosition();
     velocitySignal = motor.getVelocity();
@@ -244,10 +248,20 @@ public class Turret extends SubsystemBase {
    * @param robotHeading The current robot heading
    * @return Robot-relative angle in [0°, 360°), directly comparable to turret motor range [90°, 270°]
    */
+
   public static double fieldToRobotRelativeDegrees(Rotation2d fieldAngle, Rotation2d robotHeading) {
-    double deg = fieldAngle.minus(robotHeading).getDegrees(); // (-180°, 180°]
-    return deg < 0 ? deg + 360.0 : deg;                      // [0°, 360°)
-  }
+   //WORKS ON BLUE
+    //double deg = fieldAngle.minus(robotHeading).getDegrees(); // (-180°, 180°]
+    //return deg < 0 ? deg + 360.0 : deg;                      // [0°, 360°)
+
+    
+    // if (DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red) {
+    //     fieldAngle = new Rotation2d(Math.PI - fieldAngle.getRadians());
+    // }
+    double deg = fieldAngle.minus(robotHeading).getDegrees();
+    return deg < 0 ? deg + 360.0 : deg;
+}
+
 
   /**
    * Get the current velocity in rotations per second.
@@ -297,6 +311,7 @@ public class Turret extends SubsystemBase {
    */
   public void setRobotRelativeAngle(double angleDegrees) {
     setRobotRelativeAngle(angleDegrees, 0);
+
   }
 
   /**
@@ -349,6 +364,13 @@ public class Turret extends SubsystemBase {
   }
 
   /**
+   * Creates a command that applies neutral output (no commanded motion).
+   */
+  public Command neutralOutputCommand() {
+    return run(() -> motor.setControl(neutralOutRequest));
+  }
+
+  /**
    * Creates a command to automatically aim the turret at a target.
    * @param robotPoseSupplier Supplier that provides the current robot pose
    * @param target The target to aim at (HUB, LEFT_PASS, or RIGHT_PASS)
@@ -372,19 +394,25 @@ public class Turret extends SubsystemBase {
       Pose2d robotPose = robotPoseSupplier.get();
 
       TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(robotPose, target.get());
-
-      if (solution.isValid) {
-        // Feedforward: when robot rotates at ω, turret target moves at -ω in turret frame
         double omega = robotOmegaRadPerSec.getAsDouble();
         double turretVelRotPerSec = -omega / (2.0 * Math.PI);
         double ffVolts = kV * turretVelRotPerSec;
-        setRobotRelativeAngle(solution.robotRelativeAngleDegrees, ffVolts);
 
-        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", true);
+      if (DriverStation.getAlliance().get() == Alliance.Blue) {
+          setRobotRelativeAngle(solution.robotRelativeAngleDegrees, ffVolts);
+        } else {
+          setRobotRelativeAngle(solution.robotRelativeAngleDegrees + 180, ffVolts);
+        }
+      if (solution.isValid) {
+        // Feedforward: when robot rotates at ω, turret target moves at -ω in turret frame
+
+
+        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", solution.isValid);
+        
       }
       else
       {
-        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", false);
+        SmartDashboard.putBoolean("Turret/AutoAim/IsValid", solution.isValid);
       }
 
     }).withName("AutoAim-" + target.toString());
@@ -415,4 +443,5 @@ public class Turret extends SubsystemBase {
 
     setRobotRelativeAngle(angleSetpoint);
   }
+  
 }

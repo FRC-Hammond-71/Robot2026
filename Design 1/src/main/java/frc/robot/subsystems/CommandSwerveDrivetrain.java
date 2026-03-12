@@ -262,13 +262,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
             AutoBuilder.configure(
                     () -> getState().Pose, // Supplier of current robot pose
-                    this::resetPose, // Consumer for seeding pose against auto
+                    (pose) -> {}, // Consumer for seeding pose against auto
                     () -> getState().Speeds, // Supplier of current robot speeds
                     // Consumer of ChassisSpeeds and feedforwards to drive the robot
                     (speeds, feedforwards) -> setControl(
                             m_pathApplyRobotSpeeds.withSpeeds(ChassisSpeeds.discretize(speeds, 0.020))
-                                    .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
-                                    .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())
+                                    // .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
+                                    // .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())
                                     ),
                     new PPHolonomicDriveController(
                             // PID constants for translation

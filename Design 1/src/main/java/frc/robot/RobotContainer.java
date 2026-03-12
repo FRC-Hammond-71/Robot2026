@@ -84,7 +84,7 @@ public class RobotContainer {
 	private boolean wasRotating = true; // start true so first loop captures actual heading
 	private final Telemetry logger = new Telemetry(Constants.Drivetrain.kCruiseSpeed);
 	private final CommandXboxController joystick = new CommandXboxController(0);
-	private final CommandXboxController operator = new CommandXboxController(0);
+	private final CommandXboxController operator = new CommandXboxController(1);
 	public final CommandSwerveDrivetrain drivetrain = new CommandSwerveDrivetrain(
 			turret.getPositionSignal(),
 			TunerConstants.DrivetrainConstants,
@@ -222,11 +222,14 @@ public class RobotContainer {
 		// turret.setDefaultCommand(Commands.run(() -> turret.setAngle(180), turret));
 
 		// RobotModeTriggers.teleop().and(operator.a()).whileTrue(gameCommands.shootWithoutAngleCheckCommand(TargetType.HUB));
-		RobotModeTriggers.teleop().and(operator.a()).whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
+		RobotModeTriggers.teleop().and(operator.a()).and(operator.leftBumper().negate())
+				.whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 
 		RobotModeTriggers.teleop().and(operator.b()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(45));
-		RobotModeTriggers.teleop().and(operator.x()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(57.5));
-
+		RobotModeTriggers.teleop().and(operator.x()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(70));
+		operator.y().onTrue(spindexer.counterClockwiseCommand(0.5));
+		RobotModeTriggers.teleop().and(operator.leftBumper()).whileTrue(turret.neutralOutputCommand());
+		
 		// RobotModeTriggers.teleop().and(joystick.a()).whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 
 		// B: pass to whichever side of the field the robot is currently on.
@@ -320,7 +323,6 @@ public class RobotContainer {
 				() -> joystick.a().getAsBoolean(),
 				() -> joystick.x().getAsBoolean()));
 	}
-
 	// dear claude, fix thiss code, 6 7
 
 	// public Command getAutonomousCommand() {p[]p[][]\

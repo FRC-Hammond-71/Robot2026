@@ -46,8 +46,7 @@ public class Robot extends TimedRobot {
     public void autonomousInit() {
         // m_robotContainer.configBinds();
 
-        // Let PathPlanner handle pose seeding via AutoBuilder's resetPose consumer
-        // to avoid conflicting with PathPlanner's built-in alliance flipping.
+        m_robotContainer.drivetrain.resetPose(m_robotContainer.getStartingPose());
 
         m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
