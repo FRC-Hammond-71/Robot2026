@@ -1,0 +1,222 @@
+{
+  "hubs": [
+    {
+      "x": -8,
+      "y": -8,
+      "width": 2576,
+      "height": 1408,
+      "state": {
+        "sidebar": {
+          "width": 371,
+          "expanded": [
+            "/SmartDashboard/Launcher",
+            "/Drive",
+            "/Hub",
+            "/SmartDashboard/Drive",
+            "/SmartDashboard/Drive/Measured",
+            "/Drive/Speeds",
+            "/Drive/DesiredSpeeds",
+            "/SmartDashboard/LauncherTuningCommand",
+            "/SmartDashboard/ShooterTuning",
+            "/SmartDashboard/Intake",
+            "/SmartDashboard/Intake/Extension",
+            "/SmartDashboard/CommandSwerveDrivetrain/Fused",
+            "/SmartDashboard/CommandSwerveDrivetrain/Pigeon",
+            "/SmartDashboard/Turret",
+            "/SmartDashboard/Turret/AutoAim",
+            "/SmartDashboard/Turret/Target",
+            "/Robot/Pose",
+            "/Robot/Pose/Predictions",
+            "/Shot/InterceptPoint",
+            "/Shot/PredictedRobotPose",
+            "/Sim",
+            "/Pose",
+            "/DriveState",
+            "/SmartDashboard"
+          ]
+        },
+        "tabs": {
+          "selected": 3,
+          "tabs": [
+            {
+              "type": 0,
+              "title": "",
+              "controller": null,
+              "controllerUUID": "udoykbxblu81hmvqco5gknc58hs5l3x1",
+              "renderer": "",
+              "controlsHeight": 0
+            },
+            {
+              "type": 9,
+              "title": "Swerve",
+              "controller": {
+                "sources": [
+                  {
+                    "type": "states",
+                    "logKey": "NT:/DriveState/ModuleTargets",
+                    "logType": "SwerveModuleState[]",
+                    "visible": true,
+                    "options": {
+                      "color": "#0000ff",
+                      "arrangement": "0,1,2,3"
+                    }
+                  },
+                  {
+                    "type": "states",
+                    "logKey": "NT:/DriveState/ModuleStates",
+                    "logType": "SwerveModuleState[]",
+                    "visible": true,
+                    "options": {
+                      "color": "#00ff00",
+                      "arrangement": "0,1,2,3"
+                    }
+                  },
+                  {
+                    "type": "chassisSpeeds",
+                    "logKey": "NT:/DriveState/Speeds",
+                    "logType": "ChassisSpeeds",
+                    "visible": true,
+                    "options": {
+                      "color": "#ff0000"
+                    }
+                  }
+                ],
+                "maxSpeed": 5,
+                "sizeX": 0.65,
+                "sizeY": 0.65,
+                "orientation": 1
+              },
+              "controllerUUID": "1b0uvyz7u0z372y7ehpxd45eg74ae6rm",
+              "renderer": null,
+              "controlsHeight": 200
+            },
+            {
+              "type": 2,
+              "title": "2D Field",
+              "controller": {
+                "sources": [
+                  {
+                    "type": "robot",
+                    "logKey": "NT:rPose",
+                    "logType": "Pose2d",
+                    "visible": true,
+                    "options": {
+                      "bumpers": ""
+                    }
+                  },
+                  {
+                    "type": "ghost",
+                    "logKey": "NT:ll_RawPose",
+                    "logType": "Pose2d",
+                    "visible": false,
+                    "options": {
+                      "color": "#ff0000"
+                    }
+                  },
+                  {
+                    "type": "ghost",
+                    "logKey": "NT:ll_Bruh",
+                    "logType": "Pose2d",
+                    "visible": false,
+                    "options": {
+                      "color": "#ff8c00"
+                    }
+                  },
+                  {
+                    "type": "arrow",
+                    "logKey": "NT:/DriveState/Turret/FieldPose",
+                    "logType": "Pose2d",
+                    "visible": true,
+                    "options": {
+                      "position": "back"
+                    }
+                  },
+                  {
+                    "type": "arrow",
+                    "logKey": "NT:/DriveState/Turret/LeadShotPose",
+                    "logType": "Pose2d",
+                    "visible": true,
+                    "options": {
+                      "position": "back"
+                    }
+                  }
+                ],
+                "field": "FRC:2026 Field",
+                "orientation": 2,
+                "size": "large"
+              },
+              "controllerUUID": "gukvqwg0ykbc4uv6rqqkwoesrh9x4bt7",
+              "renderer": null,
+              "controlsHeight": 370
+            },
+            {
+              "type": 3,
+              "title": "3D Field",
+              "controller": {
+                "sources": [
+                  {
+                    "type": "robot",
+                    "logKey": "NT:rPose",
+                    "logType": "Pose2d",
+                    "visible": true,
+                    "options": {
+                      "model": "2026 KitBot"
+                    }
+                  },
+                  {
+                    "type": "gamePiece",
+                    "logKey": "NT:Sim/GamePieces",
+                    "logType": "Pose3d[]",
+                    "visible": true,
+                    "options": {
+                      "variant": "Fuel"
+                    }
+                  },
+                  {
+                    "type": "ghost",
+                    "logKey": "NT:Sim/rPose",
+                    "logType": "Pose2d",
+                    "visible": true,
+                    "options": {
+                      "model": "2026 KitBot",
+                      "color": "#00ffff"
+                    }
+                  },
+                  {
+                    "type": "ghost",
+                    "logKey": "NT:SmartDashboard/turretPose",
+                    "logType": "Pose2d",
+                    "visible": true,
+                    "options": {
+                      "model": "2026 KitBot",
+                      "color": "#00ff00"
+                    }
+                  }
+                ],
+                "game": "FRC:2026 Field"
+              },
+              "controllerUUID": "1031uagkr0avz2azmv9iprlo7aimap0q",
+              "renderer": {
+                "cameraIndex": -1,
+                "orbitFov": 50,
+                "cameraPosition": [
+                  -1.255406502919716,
+                  4.7501666548505765,
+                  -2.5922051766491587
+                ],
+                "cameraTarget": [
+                  -5.224023809702839,
+                  -0.7571399601230517,
+                  3.2940625182748744
+                ]
+              },
+              "controlsHeight": 342
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "satellites": [],
+  "version": "26.0.0"
+}

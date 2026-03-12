@@ -3,13 +3,29 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 3.55,
-        "y": 6.0
+        "x": 7.620983899821109,
+        "y": 4.594776386404293
       },
       "prevControl": null,
       "nextControl": {
-        "x": 2.7969319642959656,
-        "y": 6.0
+        "x": 7.604758497316638,
+        "y": 5.698103756708408
+      },
+      "isLocked": false,
+      "linkedName": "LG"
+    },
+    {
+      "anchor": {
+        "x": 4.619284436493739,
+        "y": 7.434221824686941
+      },
+      "prevControl": {
+        "x": 7.119284436493739,
+        "y": 7.434221824686941
+      },
+      "nextControl": {
+        "x": 2.6892844364937387,
+        "y": 7.434221824686941
       },
       "isLocked": false,
       "linkedName": null
@@ -20,8 +36,8 @@
         "y": 5.990161001788908
       },
       "prevControl": {
-        "x": 2.784543828264758,
-        "y": 5.990161001788908
+        "x": 2.4126296958855096,
+        "y": 6.590500894454383
       },
       "nextControl": null,
       "isLocked": false,
@@ -31,9 +47,16 @@
   "rotationTargets": [],
   "constraintZones": [],
   "pointTowardsZones": [],
-  "eventMarkers": [],
+  "eventMarkers": [
+    {
+      "name": "RetractIntakeCommand",
+      "waypointRelativePos": 0.7,
+      "endWaypointRelativePos": null,
+      "command": null
+    }
+  ],
   "globalConstraints": {
-    "maxVelocity": 3.0,
+    "maxVelocity": 1.5,
     "maxAcceleration": 1.5,
     "maxAngularVelocity": 180.0,
     "maxAngularAcceleration": 180.0,
@@ -48,7 +71,7 @@
   "folder": null,
   "idealStartingState": {
     "velocity": 0,
-    "rotation": 0.0
+    "rotation": -90.0
   },
-  "useDefaultConstraints": false
+  "useDefaultConstraints": true
 }

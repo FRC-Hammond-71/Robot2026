@@ -8,16 +8,16 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.subsystems.Shooter;
-import frc.robot.subsystems.Spindexer;
-import frc.robot.subsystems.Turret;
+import frc.robot.subsystems.ShooterSubsystem;
+import frc.robot.subsystems.SpindexerSubsystem;
+import frc.robot.subsystems.TurretSubsystem;
 
 // https://github.com/GROTTAKE/PNW_Ri3D_2026/blob/main/WPILIB/src/main/java/frc/robot/commands/LauncherTuningCommand.java
 public class ShooterTuningCommand extends Command {
 
     private AngularVelocity current, max, interval;
-    private final Shooter shooter;
-    private final Spindexer spindexer;
+    private final ShooterSubsystem shooter;
+    private final SpindexerSubsystem spindexer;
     private final Supplier<Boolean> doNextLevel, doPrevLevel, doShoot;
 
     private boolean spinning = false;
@@ -30,8 +30,8 @@ public class ShooterTuningCommand extends Command {
     private boolean prevShoot = false;
 
     public ShooterTuningCommand(
-        Shooter shooter,
-        Spindexer spindexer,
+        ShooterSubsystem shooter,
+        SpindexerSubsystem spindexer,
         AngularVelocity min,
         AngularVelocity max,
         AngularVelocity interval,
