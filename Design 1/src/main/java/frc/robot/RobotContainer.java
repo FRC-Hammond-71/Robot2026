@@ -63,6 +63,7 @@ public class RobotContainer {
 	 * Setting up bindings for neces]\[
 	 * sary control of the swerve drive platform
 	 */
+	private double RPS = 0;
 	private static final Pose2d kLeftStart = new Pose2d(3.55, 6, Rotation2d.kZero);
 	private static final Pose2d kMiddleStart = new Pose2d(3.55, 4, Rotation2d.kZero);
 	private static final Pose2d kRightStart = new Pose2d(3.55, 2, Rotation2d.kZero);
@@ -103,7 +104,7 @@ public class RobotContainer {
 		autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()
 		SmartDashboard.putData("Auto Mode", autoChooser);
 		configureBindings();
-
+		SmartDashboard.putNumber("RPS", RPS);
 		startingPoseChooser.setDefaultOption("Middle", kMiddleStart);
 		startingPoseChooser.addOption("Left", kLeftStart);
 		startingPoseChooser.addOption("Right", kRightStart);
@@ -225,7 +226,7 @@ public class RobotContainer {
 		RobotModeTriggers.teleop().and(operator.a()).and(operator.leftBumper().negate())
 				.whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
 
-		RobotModeTriggers.teleop().and(operator.b()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(45));
+		RobotModeTriggers.teleop().and(operator.b()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(SmartDashboard.getNumber("RPS", RPS)));
 		RobotModeTriggers.teleop().and(operator.x()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(70));
 		operator.y().onTrue(spindexer.counterClockwiseCommand(0.5));
 		RobotModeTriggers.teleop().and(operator.leftBumper()).whileTrue(turret.neutralOutputCommand());
@@ -273,7 +274,7 @@ public class RobotContainer {
 		RobotModeTriggers.test().whileTrue(Commands.runEnd(() -> {
 
 			if (joystick.getLeftTriggerAxis() > 0.2) {
-				spindexer.clockwise(0.5);
+				spindexer.clockwise(0.75);
 			} else {
 				spindexer.stop();
 			}
@@ -324,7 +325,6 @@ public class RobotContainer {
 				() -> joystick.x().getAsBoolean()));
 	}
 	// dear claude, fix thiss code, 6 7
-
 	// public Command getAutonomousCommand() {p[]p[][]\
 
 	// // Simple drive forward auton

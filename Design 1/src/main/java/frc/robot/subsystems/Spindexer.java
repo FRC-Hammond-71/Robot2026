@@ -16,11 +16,11 @@ public class Spindexer extends SubsystemBase
 
     public Spindexer() {
         SparkMaxConfig motorConfig = new SparkMaxConfig();
-        motorConfig.smartCurrentLimit(40);
+        motorConfig.smartCurrentLimit(60);
         motor.configure(motorConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
 
         SparkMaxConfig kickerConfig = new SparkMaxConfig();
-        kickerConfig.smartCurrentLimit(40);
+        kickerConfig.smartCurrentLimit(60);
         kicker.configure(kickerConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 

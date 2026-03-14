@@ -5,7 +5,9 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import java.util.function.Supplier;
 
 import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.Shooter;
@@ -19,15 +21,15 @@ public class ShooterTuningCommand extends Command {
     private final Shooter shooter;
     private final Spindexer spindexer;
     private final Supplier<Boolean> doNextLevel, doPrevLevel, doShoot;
-
+    public  final XboxController controller = new XboxController(0);
     private boolean spinning = false;
     private final Timer spinTimer = new Timer();
-    private static final double SPIN_DURATION_SECONDS = 2.0;
+    private static final double SPIN_DURATION_SECONDS =5.0;
 
     // Edge detection: only trigger on press→release (falling edge)
     private boolean prevNext = false;
     private boolean prevPrev = false;
-    private boolean prevShoot = false;
+    private boolean prevShoot = true;
 
     public ShooterTuningCommand(
         Shooter shooter,
@@ -83,10 +85,7 @@ public class ShooterTuningCommand extends Command {
         prevPrev = curPrev;
         prevShoot = curShoot;
 
-        if (shootReleased) {
-            spinning = true;
-            spinTimer.restart();
-
+        if (controller.getXButton()) {
             spindexer.clockwise(0.5);
             shooter.setVelocity(current.in(RotationsPerSecond));
         } else if (nextReleased) {
