@@ -243,8 +243,15 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 		// Target positions (getAllianceHub, etc.) are already alliance-specific,
 		// so the field angle is already correct — no mirroring needed here.
 		double deg = fieldAngle.minus(robotHeading).getDegrees();
-
-		return deg < 0 ? deg + 360.0 : deg;
+		if (deg > 0) {
+			 return deg + 360;
+			}
+		else if (deg < 360) {
+			return deg - 360;
+		}
+		else{
+			return deg;
+			}
 	}
 
 	public double getTargetRobotRelativeAngleDegrees() {
