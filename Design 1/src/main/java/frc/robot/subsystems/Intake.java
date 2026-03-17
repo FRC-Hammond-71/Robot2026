@@ -1,15 +1,6 @@
 package frc.robot.subsystems;
 
 import com.ctre.phoenix6.hardware.TalonFX;
-
-import static edu.wpi.first.units.Units.Meters;
-
-import java.time.Duration;
-import java.util.Optional;
-
-import org.ironmaple.simulation.IntakeSimulation;
-import org.ironmaple.simulation.SimulatedArena;
-
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
@@ -19,21 +10,14 @@ import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
-import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
-import frc.robot.Robot;
-import frc.robot.SubsystemWithMapleSimSimulation;
 import frc.robot.util.CurrentDetection;
-import frc.robot.util.ElapsedTimer;
 
-public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
-
-    private final Optional<IntakeSimulation> Sim;
+public class Intake extends SubsystemBase {
 
     // KrakenX60 — intake shaft
     private final TalonFX m_intakeMotor = new TalonFX(Constants.Intake.kIntakeMotorCanID);
@@ -42,33 +26,11 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
     private final SparkMax m_extensionMotor = new SparkMax(Constants.Intake.kExtensionMotorCanID, MotorType.kBrushless);
 
     private final CurrentDetection extensionCurrentDetection = new CurrentDetection(
-            Constants.Intake.kExtensionStallThreshold, Constants.Intake.kExtensionStallDurationSeconds);
-    public boolean isExtended = false; // true = currently in extended position
+        Constants.Intake.kExtensionStallThreshold, Constants.Intake.kExtensionStallDurationSeconds);
+    private boolean isExtended = false;       // true = currently in extended position
     private boolean isExtensionMoving = false; // true = motor actively running to extend/retract
-    private double extensionMoveStartTime = 0; // FPGA timestamp when extension movement began
 
-    public IntakeSubsystem(Robot robotInstance) {
-
-        super(robotInstance);
-
-        if (RobotBase.isSimulation()) {
-
-            Sim = Optional.of(IntakeSimulation.OverTheBumperIntake(
-                "Fuel",
-                robotInstance.Drivetrain.getMapleSimSwerveDrivetrain(),
-                Meters.of(Constants.Simulation.kIntakeWidthMeters),
-                Meters.of(Constants.Simulation.kIntakeExtensionMeters),
-                IntakeSimulation.IntakeSide.FRONT,
-                Constants.Intake.kMaxGamePieces));
-
-            // SimulatedArena.getInstance().addDriveTrainSimulation(robotInstance.Drivetrain.getMapleSimSwerveDrivetrain());
-
-        } else {
-
-            Sim = Optional.empty();
-
-        }
-
+    public Intake() {
         // KrakenX60 config
         TalonFXConfiguration intakeConfig = new TalonFXConfiguration();
         intakeConfig.CurrentLimits.StatorCurrentLimit = Constants.Intake.kStatorCurrentLimit;
@@ -83,34 +45,17 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
         m_extensionMotor.configure(extensionConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 
-    public int getGamePiecesHeldSimm() {
-        return this.Sim.isPresent() ? Sim.get().getGamePiecesAmount() : 0;
-    }
-
-    public boolean obtainGamePieceSim()
-    {
-        return this.Sim.isPresent() && Sim.get().obtainGamePieceFromIntake();
-    }
-
     @Override
     public void periodic() {
         double extensionCurrent = m_extensionMotor.getOutputCurrent();
         SmartDashboard.putNumber("Intake/Extension/Amperage", extensionCurrent);
         SmartDashboard.putBoolean("Intake/Extension/IsExtended", isExtended);
         SmartDashboard.putBoolean("Intake/Extension/IsMoving", isExtensionMoving);
-            // SmartDashboard.putNumber("Intake/GamePiecesHeld", simManager.getGamePiecesHeld());
 
-        // Stop the extension motor when it reaches physical limit:
-        // - Real: current spike detection (stall)
-        // - Sim: time-based (1 second)
-        if (isExtensionMoving) {
-            boolean done = RobotBase.isSimulation()
-                    ? (Timer.getFPGATimestamp() - extensionMoveStartTime >= 1.0)
-                    : extensionCurrentDetection.isOvercurrent(extensionCurrent);
-            if (done) {
-                stopExtension();
-                isExtensionMoving = false;
-            }
+        // Stop the extension motor when it stalls (reached physical limit)
+        if (isExtensionMoving && extensionCurrentDetection.isOvercurrent(extensionCurrent)) {
+            stopExtension();
+            isExtensionMoving = false;
         }
 
         // Run intake while retracting (full speed) or while extended (hold speed)
@@ -123,33 +68,36 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
         }
     }
 
+    // --- Intake shaft (KrakenX60) ---
+
     public void intake(double speed) {
         m_intakeMotor.set(speed);
+    }
 
-        if (this.Sim.isPresent()) Sim.get().startIntake();
+    public void score(double speed) {
+        m_intakeMotor.set(speed);
     }
 
     public void stop() {
         m_intakeMotor.set(0);
-
-        if (this.Sim.isPresent()) Sim.get().stopIntake();
     }
 
     public Command intakeCommand(double speed) {
         return Commands.runEnd(() -> intake(speed), this::stop, this).withName("Intake");
     }
 
+    public Command scoreCommand(double speed) {
+        return Commands.runEnd(() -> score(speed), this::stop, this).withName("Score");
+    }
+
     /**
-     * Toggles the extension: if retracted, starts extending; if extended, starts
-     * retracting.
-     * The motor stops automatically in periodic() when a 40A current spike is
-     * detected.
+     * Toggles the extension: if retracted, starts extending; if extended, starts retracting.
+     * The motor stops automatically in periodic() when a 40A current spike is detected.
      */
     public void toggleExtension() {
         isExtended = !isExtended;
         isExtensionMoving = true;
         extensionCurrentDetection.reset();
-        extensionMoveStartTime = Timer.getFPGATimestamp();
         if (isExtended) {
             extend(0.35);
         } else {
@@ -188,23 +136,4 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
     public Command retractCommand(double speed) {
         return Commands.runEnd(() -> retract(speed), this::stopExtension, this).withName("Intake Retract");
     }
-
-    @Override
-    protected void periodicReal() {
-        
-
-    }
-
-    @Override
-    protected void periodicSimulated() {
-       
-
-    }
-
-    @Override
-    protected void periodicAny() {
-       
-
-    }
-
 }

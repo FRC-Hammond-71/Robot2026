@@ -4,12 +4,10 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants;
-import frc.robot.Math.ShooterMath;
 import frc.robot.generated.FieldConstants;
-import frc.robot.subsystems.TurretSubsystem;
+import frc.robot.subsystems.Turret;
 
 /**
  * Utility class for turret targeting calculations.
@@ -24,7 +22,7 @@ public class TurretUtil {
 
     /** Enum for selecting which lookup table / target to use. */
     public enum TargetType {
-        AllianceHUB,
+        HUB,
         LEFT_PASS,
         RIGHT_PASS
     }
@@ -90,7 +88,7 @@ public class TurretUtil {
     /** Returns the 2D field pose of the requested target. */
     public static Pose2d getTargetPose(TargetType target) {
         switch (target) {
-            case AllianceHUB:
+            case HUB:
                 return new Pose2d(FieldConstants.getAllianceHub().toTranslation2d(), Rotation2d.kZero);
             case LEFT_PASS:
                 return LEFT_PASS_TARGET;
@@ -132,7 +130,7 @@ public class TurretUtil {
      */
     public static double getRobotRelativeAngleDegrees(Pose2d robotPose, TargetType target) {
         Rotation2d fieldAngle = new Rotation2d(getFieldAngleToTarget(robotPose, target));
-        return TurretSubsystem.fieldToRobotRelativeDegrees(fieldAngle, robotPose.getRotation());
+        return Turret.fieldToRobotRelativeDegrees(fieldAngle, robotPose.getRotation());
     }
 
     // =========================
@@ -185,59 +183,6 @@ public class TurretUtil {
                 valid);
     }
 
-    private static final ShooterMath leadingInterceptSolver = new ShooterMath(
-            42,
-            Constants.Shooter.kWheelDiameterMeters,
-            Constants.Shooter.kSlipFactor,
-            Constants.Shooter.kHeightDeltaMeters,
-            FieldConstants.HUB_ENTRANCE_HEIGHT);
-
-    /**
-     * Computes a leading shot that accounts for robot motion.
-     * Uses ShooterMath for projectile intercept and PosePrediction to
-     * estimate where the robot will be at time-of-flight.
-     */
-    public static ShotSolution computeLeadingShot(Pose2d robotPose, ChassisSpeeds robotVelocity, TargetType target) {
-        Translation2d targetTranslation = getTargetPose(target).getTranslation();
-
-        // ChassisSpeeds from the drivetrain is robot-relative (vx=forward, vy=left).
-        // The intercept solver works in field coordinates, so rotate into field frame.
-        double cos = robotPose.getRotation().getCos();
-        double sin = robotPose.getRotation().getSin();
-        ChassisSpeeds fieldRelativeVelocity = new ChassisSpeeds(
-                robotVelocity.vxMetersPerSecond * cos - robotVelocity.vyMetersPerSecond * sin,
-                robotVelocity.vxMetersPerSecond * sin + robotVelocity.vyMetersPerSecond * cos,
-                robotVelocity.omegaRadiansPerSecond);
-
-        // Solve the intercept using ShooterMath from turret pivot, not robot center
-        Translation2d turretPosition = getTurretPose(robotPose).getTranslation();
-        ShooterMath.ShotSolution mathSolution = leadingInterceptSolver.solveShot(
-                turretPosition,
-                targetTranslation,
-                new Translation2d(), // stationary target
-                fieldRelativeVelocity);
-
-        // solveShot's yaw already accounts for robot velocity — use it directly
-        // as the field-relative aim direction from the current pose.
-        Rotation2d fieldAngle = new Rotation2d(mathSolution.yaw);
-        double robotRelativeAngle = TurretSubsystem.fieldToRobotRelativeDegrees(fieldAngle, robotPose.getRotation());
-
-        // Get trajectory angle and time-of-flight from lookup table
-        double trajectoryAngle = getTrajectoryAngle(mathSolution.distance, target);
-        double tof = getTimeOfFlight(mathSolution.distance, target);
-
-        boolean valid = isWithinShootingRange(mathSolution.distance)
-                && isTurretAngleReachable(robotRelativeAngle);
-
-        return new ShotSolution(
-                mathSolution.distance,
-                robotRelativeAngle,
-                trajectoryAngle,
-                mathSolution.rps,
-                tof,
-                valid);
-    }
-
     // =========================
     // VALIDATION
     // =========================
@@ -250,6 +195,7 @@ public class TurretUtil {
     /** True if the turret can physically reach the requested angle. */
     public static boolean isTurretAngleReachable(double angleDegrees) {
         SmartDashboard.putNumber("Requested Angle", angleDegrees);
+        //please keep the smartdashboard keys relevant 
         return angleDegrees >= Constants.Turret.kMinAngleDegrees
                 && angleDegrees <= Constants.Turret.kMaxAngleDegrees;
     }

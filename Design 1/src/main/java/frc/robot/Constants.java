@@ -71,10 +71,10 @@ public class Constants {
 
         // Motor and control constants
         public static final double kGearRatio = (48.0 / 14.0) * (120.0 / 35.0); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
-        public static final double kKP = 25; // Proportional gain (dimensionless)
+        public static final double kKP = 40; // Proportional gain (dimensionless)
         public static final double kKI = 0.2; // Integral gain (dimensionless)
         public static final double kKD = 0.8; // Derivative gain (dimensionless)
-        public static final double kKS = 1; // Static friction feedforward (volts)
+        public static final double kKS = 3; // Static friction feedforward (volts)
         public static final double kKV = 2; // Velocity feedforward (volt-seconds per radian)
         public static final double kKA = 0; // Acceleration feedforward (volt-seconds² per radian)
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
@@ -108,7 +108,6 @@ public class Constants {
         public static final double kMaxSpeedRPS       = 80.0;
         public static final double kMinSpeedRPS       = 15.0;
         public static final double kSpeedToleranceRPS = 2.0;
-        public static final double kSimFireRateSeconds = 0.3; // min time between shots in sim
     }
 
     public static final class Intake {
@@ -123,20 +122,11 @@ public class Constants {
         public static final double kExtensionStallThreshold = 30;  // stall detection threshold (amps) — must be below kExtensionCurrentLimit
         public static final double kExtensionStallDurationSeconds = 0.25; // sustain overcurrent this long before stopping
         public static final double kHoldSpeed = 0.75; // duty cycle to hold game pieces while extended
-        public static final int kMaxGamePieces = 20; // max fuel held at once in sim
     }
 
     public static final class Drivetrain {
         public static final double kCruiseSpeed = 1.25;
         public static final AngularVelocity kCruiseAngularRate = RotationsPerSecond.of(0.5);
-    }
-
-    public static final class Simulation {
-        public static final double kRobotMassKg = 50.0;        // ~110 lbs with bumpers
-        public static final double kBumperLengthMeters = 0.762; // 30" frame
-        public static final double kBumperWidthMeters = 0.762;  // 30" frame
-        public static final double kIntakeWidthMeters = 0.70;   // spans most of front
-        public static final double kIntakeExtensionMeters = 0.15;
     }
 
     public static final class Climber {

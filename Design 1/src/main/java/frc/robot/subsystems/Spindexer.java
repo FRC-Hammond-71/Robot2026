@@ -9,18 +9,19 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
-public class SpindexerSubsystem extends SubsystemBase
+public class Spindexer extends SubsystemBase
 {
     private final SparkMax motor = new SparkMax(40, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushless);
     private final SparkMax kicker = new SparkMax(52, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushed);
 
-    public SpindexerSubsystem() {
+    public Spindexer() {
         SparkMaxConfig motorConfig = new SparkMaxConfig();
         motorConfig.smartCurrentLimit(40);
         motor.configure(motorConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
 
         SparkMaxConfig kickerConfig = new SparkMaxConfig();
         kickerConfig.smartCurrentLimit(40);
+        // TODO: Coast mode
         kicker.configure(kickerConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 

@@ -5,15 +5,15 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 
 import frc.robot.subsystems.CommandSwerveDrivetrain;
-import frc.robot.subsystems.ShooterSubsystem;
+import frc.robot.subsystems.Shooter;
 
 public class ShootFuelCommand extends Command {
 
-    private final ShooterSubsystem m_shooter;
+    private final Shooter m_shooter;
     private final CommandSwerveDrivetrain m_drivetrain;
     private double m_targetRPS = 0;
 
-    public ShootFuelCommand(ShooterSubsystem shooter, CommandSwerveDrivetrain drivetrain) {
+    public ShootFuelCommand(Shooter shooter, CommandSwerveDrivetrain drivetrain) {
         m_shooter    = shooter;
         m_drivetrain = drivetrain;
         addRequirements(shooter);

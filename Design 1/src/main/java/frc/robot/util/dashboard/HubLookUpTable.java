@@ -45,10 +45,13 @@ public class HubLookUpTable {
         // addEntry(2.0,  0, 42, 0.55);
         // MIN RANGE IS 2.5
         // NOTE: TIME OF FLIGHT IS INCORRECT AND SHOULDN'T BE CONSIDERED
-        addEntry(2.286,  35, 42, 0.65);
-        addEntry(2.7432,  40, 42, 0.75);
-        addEntry(3.2004,  42.5, 42, 0.85);
-        addEntry(3.6576,  45, 42, 0.95);
+        addEntry(2.286,  38, 42, 0.65);
+        addEntry(2.7432,  43, 42, 0.75);
+        addEntry(3.2,  45.5, 42, 0.85);
+        addEntry(3.0, 44.4, 42, 0.9);
+        addEntry(3.4, 46.6, 42, 0.94);
+        addEntry(3.6576, 48, 42, 0.95);
+        addEntry(3.8, 47.8, 42, 1);
         addEntry(4.1148,  47.5, 42, 1.05);  // Slight RPS increase for far shots
         addEntry(4.572,  52.5, 42, 1.15);
         addEntry(5.0292,  55, 42, 1.25);  // Max distance - lowest angle
