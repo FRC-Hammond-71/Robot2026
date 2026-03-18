@@ -318,7 +318,7 @@ public class RobotContainer {
 				spindexer,
 				RotationsPerSecond.of(Constants.Shooter.kMinSpeedRPS),
 				RotationsPerSecond.of(Constants.Shooter.kMaxSpeedRPS),
-				RotationsPerSecond.of(2.5),
+				RotationsPerSecond.of(1),
 				() -> joystick.y().getAsBoolean(),
 				() -> joystick.a().getAsBoolean(),
 				() -> joystick.x().getAsBoolean()));

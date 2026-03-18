@@ -55,10 +55,10 @@ public class Telemetry {
     /* Turret field-space heading (robot translation + turret field heading) */
     private final StructPublisher<Pose2d> turretFieldPose = driveStateTable.getStructTopic("Turret/FieldPose", Pose2d.struct).publish();
     private Rotation2d m_turretFieldHeading = Rotation2d.kZero;
-
     /* Robot pose for field positioning */
     private final NetworkTable table = inst.getTable("Pose");
     private final DoubleArrayPublisher fieldPub = table.getDoubleArrayTopic("robotPose").publish();
+    
     private final DoubleArrayPublisher turretFieldPub = table.getDoubleArrayTopic("turretPose").publish();
     private final StringPublisher fieldTypePub = table.getStringTopic(".type").publish();
 

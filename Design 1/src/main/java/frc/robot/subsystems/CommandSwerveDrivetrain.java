@@ -46,6 +46,7 @@ import frc.robot.BufferedStatusSignal;
 import com.ctre.phoenix6.Timestamp.TimestampSource;
 import com.ctre.phoenix6.StatusSignal;
 import edu.wpi.first.units.measure.Angle;
+import frc.robot.generated.FieldConstants;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 
 // #region WARNING
@@ -233,7 +234,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             // 2D transform: camera field pose → robot field pose
             Pose2d robotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(correctedCameraPose, turretAngleRad);
             Pose2d finalPose = new Pose2d(robotPose.getTranslation(), pigeonHeading);
-
             blehPublisher.set(finalPose);
 
             // Large theta std dev (1e9) = Kalman filter ignores heading from vision entirely.
@@ -435,7 +435,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         // LimelightHelpers.getBotPose2d_wpiBlue("limelight");
 
         SmartDashboard.putBoolean("Pigeon Connected", getPigeon2().isConnected());
-
+        SmartDashboard.putNumber("DistanceToHub", getState().Pose.getTranslation().getDistance(FieldConstants.getAllianceHub().toTranslation2d()));
         SmartDashboard.putNumber("CommandSwerveDrivetrain/Pigeon/Heading",
                 getPigeon2().getYaw(true).getValue().in(Degrees));
         SmartDashboard.putNumber("CommandSwerveDrivetrain/Fused/Heading", getState().Pose.getRotation().getDegrees());

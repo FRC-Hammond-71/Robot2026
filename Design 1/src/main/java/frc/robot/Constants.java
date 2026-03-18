@@ -105,7 +105,7 @@ public class Constants {
         public static final double kD = 0.0;
         public static final double kV = 0.12;
     
-        public static final double kMaxSpeedRPS       = 80.0;
+        public static final double kMaxSpeedRPS       = 100.0;
         public static final double kMinSpeedRPS       = 15.0;
         public static final double kSpeedToleranceRPS = 2.0;
     }
