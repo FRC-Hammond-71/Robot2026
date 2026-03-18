@@ -227,7 +227,7 @@ public class RobotContainer {
 
 		RobotModeTriggers.teleop().and(operator.b()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(45));
 		RobotModeTriggers.teleop().and(operator.x()).whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(70));
-		operator.y().onTrue(spindexer.counterClockwiseCommand(0.8));
+		RobotModeTriggers.teleop().and(operator.y()).onTrue(spindexer.counterClockwiseCommand(0.8));
 		RobotModeTriggers.teleop().and(operator.leftBumper()).whileTrue(turret.neutralOutputCommand());
 		
 		// RobotModeTriggers.teleop().and(joystick.a()).whileTrue(gameCommands.aimAndShootCommand(TargetType.HUB));
@@ -282,7 +282,7 @@ public class RobotContainer {
 		}, () -> {
 			shooter.stop();
 			spindexer.stop();
-		}));
+		}, shooter, spindexer));
 
 		// B: turret aim + shooter spinup (full shot readiness, no feeder)
 		// RobotModeTriggers.test().and(joystick.b()).whileTrue(
@@ -313,7 +313,7 @@ public class RobotContainer {
 	}
 
 	private void configureTestBindingsForShooterTuning() {
-		joystick.b().onTrue(new ShooterTuningCommand(
+		RobotModeTriggers.test().and(joystick.b()).onTrue(new ShooterTuningCommand(
 				shooter,
 				spindexer,
 				RotationsPerSecond.of(Constants.Shooter.kMinSpeedRPS),
