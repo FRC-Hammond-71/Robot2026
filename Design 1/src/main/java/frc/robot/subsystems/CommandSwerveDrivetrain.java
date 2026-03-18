@@ -209,57 +209,52 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public void updateOdometry() {
-        Limelight limelight = Limelight.useDevice("limelight");
+        Limelight.useDevice("limelight").ifPresent(limelight -> {
+            // Compute current linear speed from drivetrain
+            ChassisSpeeds speeds = getState().Speeds;
+            double robotSpeedMps = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
 
-        Optional<Pose2d> rawResult = limelight.getRawEstimatedPose();
-        Optional<Pose2d> megaTagResult = limelight.getMegaTagEstimatedPose(2); // require at least 2 tags
-        // Optional<Pose2d> stablePose = limelight.getStableEstimatedPose(estimatedPose,
-        // gyroHeading, speeds);
+            // Single NT fetch: getStableEstimatedPose fetches internally,
+            // then getLastRawPose reuses the cached estimate
+            Optional<Pose2d> stablePose = limelight.getStableEstimatedPose(robotSpeedMps);
 
-        // Limelight must have 0,0,0 and rotation of 0,0,0 configured relative to the
-        // robot center.
+            // Publish raw pose for telemetry (no extra NT fetch)
+            limelight.getLastRawPose().ifPresent(rawPose -> {
+                if (!rawPose.equals(Pose2d.kZero)) {
+                    this.llRawPosePublisher.set(rawPose);
+                }
+            });
 
-        if (rawResult.isPresent() && !rawResult.get().equals(Pose2d.kZero)) {
-            this.llRawPosePublisher.set(rawResult.get());
-        }
-        if (megaTagResult.isPresent() && !megaTagResult.get().equals(Pose2d.kZero)) {
-            var res = megaTagResult.get();
+            if (stablePose.isPresent()) {
+                var res = stablePose.get();
 
-            double visionTimestampSeconds = Timer.getFPGATimestamp() - limelight.getLatencyInSeconds();
+                // Use the estimate's own timestamp instead of separate latency fetch
+                double visionTimestampSeconds = limelight.getLastTimestampSeconds();
 
-            double turretRotations = m_bufferedTurretAngle.getValueAt(visionTimestampSeconds,
-                    TimestampSource.System);
-            // kOriginAngle = 180° → motor resets to 0.5 rot at robot-forward.
-            // Turret angle relative to robot forward (CCW+) = (0.5 - turretRotations) * 2π.
-            double turretAngleRad = (0.5 - turretRotations) * 2.0 * Math.PI;
+                double turretRotations = m_bufferedTurretAngle.getValueAt(visionTimestampSeconds,
+                        TimestampSource.System);
+                // kOriginAngle = 180° → motor resets to 0.5 rot at robot-forward.
+                // Turret angle relative to robot forward (CCW+) = (0.5 - turretRotations) * 2π.
+                double turretAngleRad = (0.5 - turretRotations) * 2.0 * Math.PI;
 
-            // Camera heading = pigeon heading + turret angle (camera yaw = 0° in turret frame)
-            Rotation2d pigeonHeading = Rotation2d.fromDegrees(getPigeon2().getYaw().getValueAsDouble());
-            Rotation2d cameraHeading = pigeonHeading.plus(new Rotation2d(turretAngleRad));
-            Pose2d correctedCameraPose = new Pose2d(res.getTranslation(), cameraHeading);
+                // Camera heading = pigeon heading + turret angle (camera yaw = 0° in turret frame)
+                Rotation2d pigeonHeading = Rotation2d.fromDegrees(getPigeon2().getYaw().getValueAsDouble());
+                Rotation2d cameraHeading = pigeonHeading.plus(new Rotation2d(turretAngleRad));
+                Pose2d correctedCameraPose = new Pose2d(res.getTranslation(), cameraHeading);
 
-            // 2D transform: camera field pose → robot field pose
-            Pose2d robotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(correctedCameraPose, turretAngleRad);
-            Pose2d finalPose = new Pose2d(robotPose.getTranslation(), pigeonHeading);
-            blehPublisher.set(finalPose);
+                // 2D transform: camera field pose → robot field pose
+                Pose2d robotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(correctedCameraPose, turretAngleRad);
+                Pose2d finalPose = new Pose2d(robotPose.getTranslation(), pigeonHeading);
+                blehPublisher.set(finalPose);
 
-            // Large theta std dev (1e9) = Kalman filter ignores heading from vision entirely.
-            addVisionMeasurement(finalPose, visionTimestampSeconds, VecBuilder.fill(0.5, 0.5, 1e9));
+                // Scale vision std devs by tag distance: closer tags = more trust
+                double avgTagDist = limelight.getLastAvgTagDist();
+                double xyStdDev = 0.5 * (1.0 + avgTagDist);
+                addVisionMeasurement(finalPose, visionTimestampSeconds, VecBuilder.fill(xyStdDev, xyStdDev, 1e9));
 
-            this.llMegaTagPosePublisher.set(finalPose);
-        }
-        // if (stablePose.isPresent())
-        // {
-        // Pose2d newStablePose = new Pose2d(stablePose.get().getTranslation(),
-        // estimatedPose.getRotation());
-        // // Only contribute the stablePose to Pose Estimation!
-        // if (useVision)
-        // {
-        // addVisionMeasurement(newStablePose, Timer.getFPGATimestamp() -
-        // limelight.getLatencyInSeconds());
-        // }
-        // this.llStablePosePublisher.set(newStablePose);
-        // }
+                this.llMegaTagPosePublisher.set(finalPose);
+            }
+        });
         this.posePublisher.set(this.getState().Pose);
     }
 
@@ -325,7 +320,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public boolean resetPoseWithLimelight() {
-        Optional<Pose2d> es = Limelight.useDevice("limelight").getRawEstimatedPose();
+        Optional<Pose2d> es = Limelight.useDevice("limelight")
+                .flatMap(Limelight::getRawEstimatedPose);
 
         if (es.isPresent()) {
             this.resetPose(es.get());

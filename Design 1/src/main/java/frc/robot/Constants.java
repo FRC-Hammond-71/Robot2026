@@ -125,16 +125,16 @@ public class Constants {
 
     public static final class Robot {
         public static final double kMassLbs = 120.0;
-        public static final double kMOI = 6.883; // kg*m^2
+        public static final double kMOI = 6.883; // kg*m^2 TODO: measure via SysId
         public static final double kWheelCOF = 1.2;
         public static final int kMotorsPerModule = 1;
     }
 
     public static final class Auto {
-        public static final double kTranslationKP = 5.0;
+        public static final double kTranslationKP = 10.0;
         public static final double kTranslationKI = 0.0;
         public static final double kTranslationKD = 0.0;
-        public static final double kRotationKP = 5.0;
+        public static final double kRotationKP = 7.0;
         public static final double kRotationKI = 0.0;
         public static final double kRotationKD = 0.0;
     }

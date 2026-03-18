@@ -1,141 +1,224 @@
 package frc.robot.Limelight;
 
-import java.sql.Driver;
+import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import frc.robot.Robot;
+import edu.wpi.first.math.geometry.Translation2d;
 import frc.robot.Limelight.LimelightHelpers.PoseEstimate;
-import frc.robot.generated.TunerConstants;
-import edu.wpi.first.math.filter.LinearFilter;
-import edu.wpi.first.math.filter.MedianFilter;
 
 public class Limelight {
-    protected static final Map<String, Limelight> RegisteredLimelights = new HashMap<>();
 
-    private static final int sampleSize = 4;
+    protected static final Map<String, Limelight> REGISTERED_LIMELIGHTS = new HashMap<>();
+
+    private static final int SAMPLE_SIZE = 4;
+    private static final double DISPLACEMENT_ERROR_MARGIN = 0.6096;
+    private static final double MAX_ROBOT_SPEED = 4.7244;
+    private static final double SPEED_MARGIN_MULTIPLIER = 1.2;
+    private static final double FAR_TAG_DISTANCE_METERS = 4.0;
+    private static final double STALE_THRESHOLD_SECONDS = 0.5;
+    private static final int MIN_TAGS_FOR_STABLE_POSE = 2;
+
+    public static void registerDevice(String name) {
+        REGISTERED_LIMELIGHTS.putIfAbsent(name, new Limelight(name));
+    }
+
+    public static Optional<Limelight> useDevice(String name) {
+        return Optional.ofNullable(REGISTERED_LIMELIGHTS.get(name));
+    }
 
     public final String name;
 
-    /**
-     * Allowed displacement error in meters.
-     */
-    private static double displacementErrorMargin = 0.6096; // 1 Foot
+    private final TranslationMedianFilter translationFilter = new TranslationMedianFilter(SAMPLE_SIZE);
 
-    // Increase timeConstant for less smoothing (faster updates)
-
-    private final MedianFilter xFilter = new MedianFilter(sampleSize);
-    private final MedianFilter yFilter = new MedianFilter(sampleSize);
-
-    private double lastUpdatedAt = -1;
-    private Pose2d lastVisionPose = null;
+    private double lastVisionTimestamp = -1.0;
+    private double lastAcceptedTimestamp = -1.0;
+    private Pose2d lastRawVisionPose;
+    private PoseEstimate lastPoseEstimate;
+    private int acceptedStableSamples = 0;
 
     private Limelight(String name) {
         this.name = name;
-        // https://docs.limelightvision.io/docs/docs-limelight/pipeline-apriltag/apriltag-robot-localization-megatag2#imu-modes
         LimelightHelpers.SetIMUMode(this.name, 0);
     }
 
-    public static void registerDevice(String name) {
-        RegisteredLimelights.putIfAbsent(name, new Limelight(name));
+    private PoseEstimate getLatestEstimate() {
+        PoseEstimate estimate = LimelightHelpers.getBotPoseEstimate_wpiBlue(this.name);
+        lastPoseEstimate = estimate;
+        return estimate;
     }
 
-    public static Limelight useDevice(String name) {
-        return RegisteredLimelights.get(name);
+    private static boolean isValidEstimate(PoseEstimate estimate) {
+        return estimate != null && estimate.pose != null;
+    }
+
+    private static boolean isFinitePose(Pose2d pose, double timestamp) {
+        return Double.isFinite(pose.getX())
+                && Double.isFinite(pose.getY())
+                && Double.isFinite(pose.getRotation().getRadians())
+                && Double.isFinite(timestamp);
+    }
+
+    private void resetTrackingState() {
+        lastRawVisionPose = null;
+        lastVisionTimestamp = -1.0;
+        acceptedStableSamples = 0;
+        translationFilter.reset();
     }
 
     public Optional<Pose2d> getRawEstimatedPose() {
-        PoseEstimate es = LimelightHelpers.getBotPoseEstimate_wpiBlue(this.name);
-        return es == null ? Optional.empty() : Optional.ofNullable(es.pose);
-    }
-
-    public void resetPose(Pose2d initialPose)
-    {
-        LimelightHelpers.SetRobotOrientation(this.name, initialPose.getRotation().getDegrees(), 0, 0, 0, 0, 0);
-        this.lastVisionPose = initialPose;
-        this.xFilter.reset();
-        this.yFilter.reset();
-    }
-
-    // https://www.chiefdelphi.com/t/timestamp-parameter-when-adding-limelight-vision-to-odometry/455908/2
-    // TODO: Include JSON Parsing
-    public double getLatencyInSeconds()
-    {
-        return (LimelightHelpers.getLatency_Capture("limelight") + LimelightHelpers.getLatency_Pipeline("limelight")) / 1000;
+        PoseEstimate estimate = getLatestEstimate();
+        return isValidEstimate(estimate) ? Optional.of(estimate.pose) : Optional.empty();
     }
 
     public Optional<Pose2d> getMegaTagEstimatedPose(int minTagCount) {
-        PoseEstimate es = LimelightHelpers.getBotPoseEstimate_wpiBlue(this.name);
-        if (es == null || es.tagCount < minTagCount) {
+        PoseEstimate estimate = getLatestEstimate();
+
+        if (!isValidEstimate(estimate) || estimate.tagCount < minTagCount) {
             return Optional.empty();
         }
-        return Optional.ofNullable(es.pose);
+
+        return Optional.of(estimate.pose);
     }
 
-    public Optional<Pose2d> getMegaTag2EstimatedPose(Rotation2d robotGyro, ChassisSpeeds robotSpeeds) {
-        LimelightHelpers.SetRobotOrientation(this.name, robotGyro.getDegrees(), 0, 0, 0, 0, 0);
-        PoseEstimate es = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(this.name);
+    public double getLastAvgTagDist() {
+        return lastPoseEstimate != null ? lastPoseEstimate.avgTagDist : Double.MAX_VALUE;
+    }
 
-        // Reject estimates if too few tags ar seen or rotation is extreme
-        if (es == null || !es.isMegaTag2 || es.tagCount < 1 || Math.abs(Math.toDegrees(robotSpeeds.omegaRadiansPerSecond)) > 360) {
+    public double getLastTimestampSeconds() {
+        return lastAcceptedTimestamp;
+    }
+
+    public Optional<Pose2d> getLastRawPose() {
+        return lastPoseEstimate != null && lastPoseEstimate.pose != null
+                ? Optional.of(lastPoseEstimate.pose)
+                : Optional.empty();
+    }
+
+    public double getLatencyInSeconds() {
+        return (LimelightHelpers.getLatency_Capture(this.name)
+                + LimelightHelpers.getLatency_Pipeline(this.name)) / 1000.0;
+    }
+
+    public void resetPose(Pose2d initialPose) {
+        LimelightHelpers.SetRobotOrientation(
+                this.name,
+                initialPose.getRotation().getDegrees(),
+                0, 0, 0, 0, 0
+        );
+
+        lastRawVisionPose = initialPose;
+        lastVisionTimestamp = -1.0;
+        lastPoseEstimate = null;
+        acceptedStableSamples = 0;
+        translationFilter.reset();
+    }
+
+    /**
+     * Get a filtered pose estimate using MegaTag 1.
+     * Uses the actual robot speed for tighter displacement rejection.
+     *
+     * @param robotSpeedMps current robot linear speed in m/s from drivetrain
+     */
+    public Optional<Pose2d> getStableEstimatedPose(double robotSpeedMps) {
+        PoseEstimate estimate = getLatestEstimate();
+
+        if (!isValidEstimate(estimate)) {
             return Optional.empty();
         }
-        return Optional.ofNullable(es.pose);
+
+        if (estimate.tagCount < MIN_TAGS_FOR_STABLE_POSE || estimate.avgTagDist > FAR_TAG_DISTANCE_METERS) {
+            return Optional.empty();
+        }
+
+        Pose2d rawPose = estimate.pose;
+        double timestamp = estimate.timestampSeconds;
+
+        if (!isFinitePose(rawPose, timestamp)) {
+            return Optional.empty();
+        }
+
+        if (lastRawVisionPose != null && lastVisionTimestamp >= 0.0) {
+            double rawDt = timestamp - lastVisionTimestamp;
+
+            if (rawDt <= 0.0) {
+                return Optional.empty();
+            }
+
+            if (rawDt > STALE_THRESHOLD_SECONDS) {
+                resetTrackingState();
+            } else {
+                double displacement = lastRawVisionPose.getTranslation().getDistance(rawPose.getTranslation());
+                // Use actual speed with margin, capped at max robot speed
+                double effectiveSpeed = Math.min(robotSpeedMps * SPEED_MARGIN_MULTIPLIER, MAX_ROBOT_SPEED);
+                double maxAllowed = (effectiveSpeed * rawDt) + DISPLACEMENT_ERROR_MARGIN;
+
+                if (displacement > maxAllowed) {
+                    return Optional.empty();
+                }
+            }
+        }
+
+        Translation2d filteredTranslation = translationFilter.calculate(rawPose.getTranslation());
+
+        lastRawVisionPose = rawPose;
+        lastVisionTimestamp = timestamp;
+        lastAcceptedTimestamp = timestamp;
+        acceptedStableSamples++;
+
+        if (acceptedStableSamples < SAMPLE_SIZE) {
+            return Optional.empty();
+        }
+
+        return Optional.of(new Pose2d(filteredTranslation, rawPose.getRotation()));
     }
 
-    // Get pose with FULL filtering / smoothing (velocity, distance, angular, limits)
-    public Optional<Pose2d> getStableEstimatedPose(Pose2d rPose, Rotation2d rGyro, ChassisSpeeds robotSpeeds) {
-        Optional<Pose2d> estimatedPoseOpt = getMegaTag2EstimatedPose(rGyro, robotSpeeds);
-        if (estimatedPoseOpt.isEmpty()) return Optional.empty();
-    
-        Pose2d estimatedPose = estimatedPoseOpt.get();
+    private static class TranslationMedianFilter {
+        private final int size;
+        private final ArrayDeque<Translation2d> samples;
 
-        if (this.lastUpdatedAt == -1)
-        {
-            this.lastUpdatedAt = Timer.getFPGATimestamp() - Robot.kDefaultPeriod;
+        TranslationMedianFilter(int size) {
+            this.size = size;
+            this.samples = new ArrayDeque<>(size);
         }
-        double elapsedSecondsSinceUpdated = Timer.getFPGATimestamp() - this.lastUpdatedAt;
-        double MAX_DISPLACEMENT_ALLOWED = (4.7244 * elapsedSecondsSinceUpdated) + displacementErrorMargin;
-    
-        
-        // Outlier rejection
-        if (lastVisionPose != null) 
-        {
-            double displacement = lastVisionPose.getTranslation().getDistance(estimatedPose.getTranslation());
-            if (Math.abs(displacement) > MAX_DISPLACEMENT_ALLOWED) 
-            {
-                return Optional.empty(); // Reject the estimate
+
+        Translation2d calculate(Translation2d sample) {
+            if (samples.size() == size) {
+                samples.removeFirst();
             }
 
-            // Reset filter if its more than 3 meters away
-            if (displacement > 3)
-            {
-                this.xFilter.reset();
-                this.yFilter.reset();
+            samples.addLast(sample);
+
+            double[] xs = new double[samples.size()];
+            double[] ys = new double[samples.size()];
+            int i = 0;
+
+            for (Translation2d translation : samples) {
+                xs[i] = translation.getX();
+                ys[i] = translation.getY();
+                i++;
             }
+
+            return new Translation2d(median(xs), median(ys));
         }
-   
-        // Apply Low-Pass Filter for X, Y, and rotation!
-        // https://docs.wpilib.org/en/stable/docs/software/advanced-controls/filters/linear-filter.html#singlepoleiir
-        double filteredX = xFilter.calculate(estimatedPose.getX());
-        double filteredY = yFilter.calculate(estimatedPose.getY());
-        // filteredRotation = rGyro.getRadians();
-        // filteredRotation = Math.atan2(Math.sin(filteredRotation), Math.cos(filteredRotation));
-    
-        // Update the lastFusedPose with the new filtered values
-        // lastVisionPose = new Pose2d(filteredX, filteredY, estimatedPose.getRotation());
-        lastVisionPose = new Pose2d(filteredX, filteredY, rGyro);
 
-        this.lastUpdatedAt = Timer.getFPGATimestamp();
+        void reset() {
+            samples.clear();
+        }
 
-        return Optional.ofNullable(lastVisionPose);
-        
+        private static double median(double[] values) {
+            double[] sorted = values.clone();
+            Arrays.sort(sorted);
+            int mid = sorted.length / 2;
+
+            if (sorted.length % 2 == 0) {
+                return (sorted[mid - 1] + sorted[mid]) / 2.0;
+            }
+
+            return sorted[mid];
+        }
     }
 }
