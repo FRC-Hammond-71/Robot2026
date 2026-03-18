@@ -15,6 +15,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.generated.FieldConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.subsystems.Intake;
 import frc.robot.subsystems.Shooter;
 import frc.robot.subsystems.Spindexer;
 import frc.robot.subsystems.Turret;
@@ -31,17 +32,18 @@ public class GameCommands {
     private final Shooter shooter;
     private final Turret turret;
     private final Spindexer spindexer;
+    private final Intake intake;
     private final CommandSwerveDrivetrain drivetrain;
     private final CommandXboxController xboxController;
 
     private final SwerveRequest.FieldCentricFacingAngle rotateInPlaceRequest = new SwerveRequest.FieldCentricFacingAngle()
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
-    public GameCommands(Shooter shooter, Turret turret, CommandSwerveDrivetrain drivetrain, Spindexer spindexer,
-            CommandXboxController xboxController) {
+    public GameCommands(Shooter shooter, Turret turret, CommandSwerveDrivetrain drivetrain, Spindexer spindexer, Intake intake, CommandXboxController xboxController) {
         this.shooter = shooter;
         this.turret = turret;
         this.spindexer = spindexer;
+        this.intake = intake;
         this.drivetrain = drivetrain;
         this.xboxController = xboxController;
 
@@ -105,17 +107,18 @@ public class GameCommands {
                         () -> drivetrain.getState().Pose,
                         () -> target,
                         () -> drivetrain.getState().Speeds.omegaRadiansPerSecond),
+                intake.extensionJiggleCommand(),
                 // Wait for the turret to settle, then run the shooter at the lookup-table speed
                 Commands.waitUntil(() -> Math.abs(turret.getErrorDegrees()) < kTurretAlignToleranceDeg)
                         .andThen(Commands.run(() -> {
                             var pose = drivetrain.getState().Pose;
                             TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
                             if (solution.isValid) {
-                                spindexer.clockwise(0.8);
                                 shooter.setVelocity(solution.shooterSpeedRPS);
+                                spindexer.feedIfReady(shooter, solution.shooterSpeedRPS);
                                 xboxController.setRumble(RumbleType.kBothRumble, 0);
                             } else {
-                                // System.out.println("");
+                                spindexer.stop();
                                 xboxController.setRumble(RumbleType.kBothRumble, 1);
                             }
                         }, shooter, spindexer))
@@ -128,32 +131,32 @@ public class GameCommands {
     }
 
     public Command shootWithoutAngleCheckCommand(TurretUtil.TargetType target) {
-        return Commands.run(() -> {
+        return Commands.parallel(intake.extensionJiggleCommand(), Commands.run(() -> {
             var pose = drivetrain.getState().Pose;
             TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
-            spindexer.clockwise(0.8);
             shooter.setVelocity(solution.shooterSpeedRPS);
+            spindexer.feedIfReady(shooter, solution.shooterSpeedRPS);
             xboxController.setRumble(RumbleType.kBothRumble, 0);
-            
+
         }, shooter, spindexer)
                 .finallyDo(__ -> {
                     shooter.stop();
                     spindexer.stop();
                     xboxController.setRumble(RumbleType.kBothRumble, 0);
-                })
+                }))
                 .withName("AimAndShoot-" + target);
     }
 
     public Command shootAtSpeedWithoutAngleCheckCommand(double RPS) {
-        return Commands.run(() -> {
-            spindexer.clockwise(0.8);
+        return Commands.parallel(intake.extensionJiggleCommand(), Commands.run(() -> {
             shooter.setVelocity(RPS);
+            spindexer.feedIfReady(shooter, RPS);
         }, shooter, spindexer)
                 .finallyDo(__ -> {
                     shooter.stop();
                     spindexer.stop();
                     xboxController.setRumble(RumbleType.kBothRumble, 0);
-                });
+                }));
     }
 
     /**
@@ -189,6 +192,7 @@ public class GameCommands {
                                 () -> drivetrain.getState().Pose,
                                 () -> TurretUtil.TargetType.HUB,
                                 () -> drivetrain.getState().Speeds.omegaRadiansPerSecond),
+                        intake.extensionJiggleCommand(),
                         Commands.sequence(
                                 // Wait 2 seconds for Limelight vision to refine pose
                                 Commands.waitSeconds(2.0),
@@ -200,8 +204,9 @@ public class GameCommands {
                                             pose, TurretUtil.TargetType.HUB);
                                     if (solution.isValid) {
                                         shooter.setVelocity(solution.shooterSpeedRPS);
-                                        Commands.waitSeconds(0.2);
-                                        spindexer.clockwise(0.8);
+                                        spindexer.feedIfReady(shooter, solution.shooterSpeedRPS);
+                                    } else {
+                                        spindexer.stop();
                                     }
                                 }, shooter, spindexer)
                                         .finallyDo(__ -> {

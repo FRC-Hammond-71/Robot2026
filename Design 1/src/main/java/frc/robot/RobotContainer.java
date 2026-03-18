@@ -38,6 +38,7 @@ import frc.robot.subsystems.Climber;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
+import com.pathplanner.lib.commands.FollowPathCommand;
 import frc.robot.subsystems.Turret;
 import frc.robot.util.dashboard.TurretUtil;
 import frc.robot.util.dashboard.TurretUtil.TargetType;
@@ -72,6 +73,7 @@ public class RobotContainer {
 			.withRotationalDeadband(Constants.Drivetrain.kCruiseAngularRate.in(RadiansPerSecond) * 0.1) // Add a 10%
 																										// deadband
 			.withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+	private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
 	private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
 	private final SwerveRequest.FieldCentricFacingAngle driveLookingAtHub = new SwerveRequest.FieldCentricFacingAngle()
 			.withDeadband(Constants.Drivetrain.kCruiseSpeed * 0.1)
@@ -97,11 +99,12 @@ public class RobotContainer {
 	// #region Commands
 
 	public RobotContainer() {
-		gameCommands = new GameCommands(shooter, turret, drivetrain, spindexer, joystick);
+		gameCommands = new GameCommands(shooter, turret, drivetrain, spindexer, intake, joystick);
 		gameCommands.registerNamedCommands(); // Registers ShootAtHub, PassLeft, PassRight
 		registerNamedCommands(); // Registers fine-grained subsystem named commands
 		autoChooser = AutoBuilder.buildAutoChooser(); // Default auto will be `Commands.none()
 		SmartDashboard.putData("Auto Mode", autoChooser);
+		FollowPathCommand.warmupCommand().schedule();
 		configureBindings();
 
 		startingPoseChooser.setDefaultOption("Middle", kMiddleStart);
@@ -250,6 +253,8 @@ public class RobotContainer {
 			// wasRotating = true;
 		}));
 
+		RobotModeTriggers.test().negate().and(joystick.pov(180)).whileTrue(drivetrain.applyRequest(() -> brake));
+
 		operator.rightBumper().onTrue(intake.toggleExtensionCommand());
 
 		configureTestBindingsForShooterTuning();
@@ -271,13 +276,15 @@ public class RobotContainer {
 
 		// Left trigger: manual shooter + spindexer control
 		RobotModeTriggers.test().whileTrue(Commands.runEnd(() -> {
+			double triggerAxis = joystick.getLeftTriggerAxis();
+			double targetRPS = triggerAxis * Constants.Shooter.kMaxSpeedRPS;
+			shooter.setVelocity(targetRPS);
 
-			if (joystick.getLeftTriggerAxis() > 0.2) {
-				spindexer.clockwise(0.8);
+			if (triggerAxis > 0.2) {
+				spindexer.feedIfReady(shooter, targetRPS);
 			} else {
 				spindexer.stop();
 			}
-			shooter.setVelocity(joystick.getLeftTriggerAxis() * Constants.Shooter.kMaxSpeedRPS);
 
 		}, () -> {
 			shooter.stop();

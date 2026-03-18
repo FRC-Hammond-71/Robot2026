@@ -21,13 +21,25 @@ public class Spindexer extends SubsystemBase
 
         SparkMaxConfig kickerConfig = new SparkMaxConfig();
         kickerConfig.smartCurrentLimit(40);
-        // TODO: Coast mode
+        kickerConfig.idleMode(com.revrobotics.spark.config.SparkBaseConfig.IdleMode.kCoast);
         kicker.configure(kickerConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 
     public void clockwise(double speed) {
         motor.set(-speed);
         kicker.set(speed);
+    }
+
+    public void clockwise() {
+        clockwise(frc.robot.Constants.Spindexer.kDefaultFeedSpeed);
+    }
+
+    public void feedIfReady(Shooter shooter, double targetRPS) {
+        if (shooter.isAtSpeed(targetRPS)) {
+            clockwise();
+        } else {
+            stop();
+        }
     }
 
     public void counterclockwise(double speed) {

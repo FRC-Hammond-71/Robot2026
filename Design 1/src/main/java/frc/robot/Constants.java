@@ -51,7 +51,6 @@ public class Constants {
 
         // WCP Throughbore CANcoder on output shaft
         // public static final int kThroughboreCanID = 58;
-        // public static final double kEncoderOffset = 0.0;  // TODO: calibrate so 0.0 = forward (rotations)
 
         public static final double kTurretOffsetX  = Units.inchesToMeters(-6.715); // X offset (forward +X, backward -X) from robot center to turret (meters) 
         public static final double kTurretOffsetY = Units.inchesToMeters(6); // Y offset (left +Y, right -Y) from robot center to turret (meters)
@@ -112,7 +111,7 @@ public class Constants {
 
     public static final class Intake {
         public static final int kIntakeMotorCanID = 18;         // KrakenX60 (TalonFX) — intake shaft
-        public static final int kExtensionMotorCanID = 53;      // NEO (SparkMax) — linear extension // TODO: confirm CAN ID
+        public static final int kExtensionMotorCanID = 53;      // NEO (SparkMax) — linear extension
 
         // 14t driving 48t gear
         public static final double kExtensionGearRatio = 48.0 / 14.0; // motor rotations per output rotation
@@ -122,6 +121,26 @@ public class Constants {
         public static final double kExtensionStallThreshold = 30;  // stall detection threshold (amps) — must be below kExtensionCurrentLimit
         public static final double kExtensionStallDurationSeconds = 0.25; // sustain overcurrent this long before stopping
         public static final double kHoldSpeed = 0.75; // duty cycle to hold game pieces while extended
+    }
+
+    public static final class Robot {
+        public static final double kMassLbs = 120.0;
+        public static final double kMOI = 6.883; // kg*m^2
+        public static final double kWheelCOF = 1.2;
+        public static final int kMotorsPerModule = 1;
+    }
+
+    public static final class Auto {
+        public static final double kTranslationKP = 5.0;
+        public static final double kTranslationKI = 0.0;
+        public static final double kTranslationKD = 0.0;
+        public static final double kRotationKP = 5.0;
+        public static final double kRotationKI = 0.0;
+        public static final double kRotationKD = 0.0;
+    }
+
+    public static final class Spindexer {
+        public static final double kDefaultFeedSpeed = 0.8;
     }
 
     public static final class Drivetrain {

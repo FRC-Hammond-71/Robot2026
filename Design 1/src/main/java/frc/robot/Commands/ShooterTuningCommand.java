@@ -64,6 +64,8 @@ public class ShooterTuningCommand extends Command {
                 spinTimer.reset();
                 shooter.stop();
                 spindexer.stop();
+            } else if (shooter.isAtSpeed(current.in(RotationsPerSecond))) {
+                spindexer.clockwise(0.8);
             }
             return;
         }
@@ -87,7 +89,6 @@ public class ShooterTuningCommand extends Command {
             spinning = true;
             spinTimer.restart();
 
-            spindexer.clockwise(0.8);
             shooter.setVelocity(current.in(RotationsPerSecond));
         } else if (nextReleased) {
             current = current.plus(interval);

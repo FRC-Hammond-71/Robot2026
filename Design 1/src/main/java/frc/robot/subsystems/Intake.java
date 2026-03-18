@@ -109,6 +109,12 @@ public class Intake extends SubsystemBase {
         return runOnce(this::toggleExtension).withName("ToggleExtension");
     }
 
+    public Command extensionJiggleCommand() {
+        return Commands.repeatingSequence(
+            toggleExtensionCommand(),
+            Commands.waitSeconds(1.0));
+    }
+
     public void extend(double speed) {
         m_extensionMotor.set(speed);
     }

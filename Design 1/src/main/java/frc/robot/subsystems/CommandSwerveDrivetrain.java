@@ -12,6 +12,7 @@ import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.ModuleConfig;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
@@ -21,12 +22,15 @@ import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.Odometry;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.trajectory.constraint.MaxVelocityConstraint;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.MomentOfInertia;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -38,6 +42,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.Constants;
 import frc.robot.Limelight.Limelight;
 import frc.robot.util.LimelightOnTurretUtils;
 
@@ -47,6 +52,8 @@ import com.ctre.phoenix6.Timestamp.TimestampSource;
 import com.ctre.phoenix6.StatusSignal;
 import edu.wpi.first.units.measure.Angle;
 import frc.robot.generated.FieldConstants;
+import frc.robot.generated.TunerConstants;
+import frc.robot.util.dashboard.TurretUtil;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 
 // #region WARNING
@@ -258,23 +265,39 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     public void configureAutoBuilder() {
         try {
-            var config = RobotConfig.fromGUISettings();
+            RobotConfig config = new RobotConfig(
+                    edu.wpi.first.units.Units.Pounds.of(Constants.Robot.kMassLbs),
+                    edu.wpi.first.units.Units.KilogramSquareMeters.of(Constants.Robot.kMOI),
+                    new ModuleConfig(
+                            TunerConstants.kWheelRadius,
+                            TunerConstants.kSpeedAt12Volts,
+                            Constants.Robot.kWheelCOF,
+                            DCMotor.getKrakenX60(Constants.Robot.kMotorsPerModule),
+                            TunerConstants.kDriveGearRatio,
+                            TunerConstants.kSlipCurrent,
+                            Constants.Robot.kMotorsPerModule
+                    ),
+                    new Translation2d[] {
+                        new Translation2d(TunerConstants.kFrontLeftXPos, TunerConstants.kFrontLeftYPos),
+                        new Translation2d(TunerConstants.kFrontRightXPos, TunerConstants.kFrontRightYPos),
+                        new Translation2d(TunerConstants.kBackLeftXPos, TunerConstants.kBackLeftYPos),
+                        new Translation2d(TunerConstants.kBackRightXPos, TunerConstants.kBackRightYPos)
+                    }
+            );
 
             AutoBuilder.configure(
                     () -> getState().Pose, // Supplier of current robot pose
-                    (pose) -> {}, // Consumer for seeding pose against auto
+                    this::resetPose, // Consumer for seeding pose against auto
                     () -> getState().Speeds, // Supplier of current robot speeds
                     // Consumer of ChassisSpeeds and feedforwards to drive the robot
                     (speeds, feedforwards) -> setControl(
                             m_pathApplyRobotSpeeds.withSpeeds(ChassisSpeeds.discretize(speeds, 0.020))
-                                    // .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
-                                    // .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())
+                                    .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
+                                    .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())
                                     ),
                     new PPHolonomicDriveController(
-                            // PID constants for translation
-                            new PIDConstants(5, 0, 0),
-                            // PID constants for rotation
-                            new PIDConstants(7, 0, 0)),
+                            new PIDConstants(Constants.Auto.kTranslationKP, Constants.Auto.kTranslationKI, Constants.Auto.kTranslationKD),
+                            new PIDConstants(Constants.Auto.kRotationKP, Constants.Auto.kRotationKI, Constants.Auto.kRotationKD)),
                     config,
                     // Assume the path needs to be flipped for Red vs Blue, this is normally the
                     // case
@@ -392,7 +415,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
         posePublisher.set(pose);
 
-        // TODO Auto-generated method stub
         super.resetPose(pose);
     }
 
@@ -435,7 +457,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         // LimelightHelpers.getBotPose2d_wpiBlue("limelight");
 
         SmartDashboard.putBoolean("Pigeon Connected", getPigeon2().isConnected());
-        SmartDashboard.putNumber("DistanceToHub", getState().Pose.getTranslation().getDistance(FieldConstants.getAllianceHub().toTranslation2d()));
+        Pose2d robotPose = getState().Pose;
+        Translation2d hub = FieldConstants.getAllianceHub().toTranslation2d();
+        SmartDashboard.putNumber("DistanceToHub/Robot", robotPose.getTranslation().getDistance(hub));
+        SmartDashboard.putNumber("DistanceToHub/Turret", TurretUtil.getTurretPose(robotPose).getTranslation().getDistance(hub));
         SmartDashboard.putNumber("CommandSwerveDrivetrain/Pigeon/Heading",
                 getPigeon2().getYaw(true).getValue().in(Degrees));
         SmartDashboard.putNumber("CommandSwerveDrivetrain/Fused/Heading", getState().Pose.getRotation().getDegrees());

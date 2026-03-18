@@ -46,8 +46,6 @@ public class Robot extends TimedRobot {
     public void autonomousInit() {
         // m_robotContainer.configBinds();
 
-        m_robotContainer.drivetrain.resetPose(m_robotContainer.getStartingPose());
-
         m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
         if (m_autonomousCommand != null) {
