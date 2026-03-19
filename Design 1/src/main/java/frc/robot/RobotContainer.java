@@ -257,13 +257,22 @@ public class RobotContainer {
 
 		operator.rightBumper().onTrue(intake.toggleExtensionCommand());
 
+		// configureTestBindingsForManualShootingAndTurret();
+		// configureTestBindingsClimber();
 		configureTestBindingsForShooterTuning();
-		configureTestBindingsForManualShootingAndTurret();
 
 		drivetrain.registerTelemetry(state -> {
 			logger.setTurretHeadingField(turret.getDesiredHeadingFieldRelative(state.Pose.getRotation()));
 			logger.telemeterize(state);
 		});
+	}
+
+	private void configureTestBindingsClimber()
+	{
+		RobotModeTriggers.test().and(joystick.y()).whileTrue(Commands.runEnd(() -> climber.climbUp(0.2), () -> climber.stopClimb()));
+		RobotModeTriggers.test().and(joystick.a()).whileTrue(Commands.runEnd(() -> climber.climbDown(0.2), () -> climber.stopClimb()));
+		RobotModeTriggers.test().and(joystick.b()).whileTrue(Commands.runEnd(() -> climber.extend(0.2), () -> climber.stopExtension()));
+		RobotModeTriggers.test().and(joystick.x()).whileTrue(Commands.runEnd(() -> climber.extend(-0.2), () -> climber.stopExtension()));
 	}
 
 	private void configureTestBindingsForManualShootingAndTurret() {

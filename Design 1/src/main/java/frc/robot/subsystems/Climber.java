@@ -69,7 +69,7 @@ public class Climber extends SubsystemBase {
     public void stopExtension() {
         m_extensionMotor.set(0);
     }
-
+    
     public Command extendCommand() {
         return Commands.runEnd(
             () -> extend(Constants.Climber.kExtensionSpeedPercent),
