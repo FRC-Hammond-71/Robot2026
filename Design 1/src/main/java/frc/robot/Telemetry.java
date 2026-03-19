@@ -5,6 +5,7 @@ import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
@@ -20,6 +21,7 @@ import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
+import frc.robot.generated.FieldConstants;
 
 public class Telemetry {
     private final double MaxSpeed;
@@ -60,6 +62,7 @@ public class Telemetry {
     private final DoubleArrayPublisher fieldPub = table.getDoubleArrayTopic("robotPose").publish();
     
     private final DoubleArrayPublisher turretFieldPub = table.getDoubleArrayTopic("turretPose").publish();
+    private final StructArrayPublisher<Translation2d> turretToHubPub = driveStateTable.getStructArrayTopic("Turret/TurretToHub", Translation2d.struct).publish();
     private final StringPublisher fieldTypePub = table.getStringTopic(".type").publish();
 
     /* Mechanisms to represent the swerve module states */
@@ -126,7 +129,10 @@ public class Telemetry {
         // Rotation2d turretFieldHeading = state.Pose.getRotation().plus(Rotation2d.fromDegrees(m_turretRobotRelativeDegrees));
         Pose2d turretPose = new Pose2d(state.Pose.getTranslation(), m_turretFieldHeading);
         turretFieldPose.set(turretPose);
-        // turretFieldPub.set(new double[] { turretPose.getX(), turretPose.getY(), turretFieldHeading.getDegrees() });
+        turretFieldPub.set(new double[] { turretPose.getX(), turretPose.getY(), m_turretFieldHeading.getDegrees() });
+
+        Translation2d hub = FieldConstants.getAllianceHub().toTranslation2d();
+        turretToHubPub.set(new Translation2d[] { state.Pose.getTranslation(), hub });
 
         /* Telemeterize each module state to a Mechanism2d */
         for (int i = 0; i < 4; ++i) {
