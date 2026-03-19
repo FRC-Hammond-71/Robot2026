@@ -9,37 +9,24 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
-public class Spindexer extends SubsystemBase
+public class SpindexerSubsystem extends SubsystemBase
 {
     private final SparkMax motor = new SparkMax(40, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushless);
     private final SparkMax kicker = new SparkMax(52, com.revrobotics.spark.SparkLowLevel.MotorType.kBrushed);
 
-    public Spindexer() {
+    public SpindexerSubsystem() {
         SparkMaxConfig motorConfig = new SparkMaxConfig();
         motorConfig.smartCurrentLimit(40);
         motor.configure(motorConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
 
         SparkMaxConfig kickerConfig = new SparkMaxConfig();
         kickerConfig.smartCurrentLimit(40);
-        kickerConfig.idleMode(com.revrobotics.spark.config.SparkBaseConfig.IdleMode.kCoast);
         kicker.configure(kickerConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 
     public void clockwise(double speed) {
         motor.set(-speed);
         kicker.set(speed);
-    }
-
-    public void clockwise() {
-        clockwise(frc.robot.Constants.Spindexer.kDefaultFeedSpeed);
-    }
-
-    public void feedIfReady(Shooter shooter, double targetRPS) {
-        if (shooter.isAtSpeed(targetRPS)) {
-            clockwise();
-        } else {
-            stop();
-        }
     }
 
     public void counterclockwise(double speed) {

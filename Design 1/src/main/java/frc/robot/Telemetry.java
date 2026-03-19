@@ -4,8 +4,11 @@ import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
@@ -21,7 +24,10 @@ import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
+import edu.wpi.first.networktables.BooleanPublisher;
+import frc.robot.Math.PosePrediction;
 import frc.robot.generated.FieldConstants;
+import frc.robot.util.dashboard.TurretUtil;
 
 public class Telemetry {
     private final double MaxSpeed;
@@ -54,13 +60,32 @@ public class Telemetry {
     private final DoublePublisher driveTimestamp = driveStateTable.getDoubleTopic("Timestamp").publish();
     private final DoublePublisher driveOdometryFrequency = driveStateTable.getDoubleTopic("OdometryFrequency").publish();
 
+    private final StructPublisher<Pose2d> predictedRobotPoses500ms = inst.getStructTopic("Robot/Pose/Predictions/500ms", Pose2d.struct).publish();
+    private final StructPublisher<Pose2d> predictedRobotPoses1s = inst.getStructTopic("Robot/Pose/Predictions/1s", Pose2d.struct).publish();
+    private final StructPublisher<Pose2d> predictedRobotPoses2s = inst.getStructTopic("Robot/Pose/Predictions/2s", Pose2d.struct).publish();
+
     /* Turret field-space heading (robot translation + turret field heading) */
     private final StructPublisher<Pose2d> turretFieldPose = driveStateTable.getStructTopic("Turret/FieldPose", Pose2d.struct).publish();
+    private final StructPublisher<Pose2d> leadShotFieldPose = driveStateTable.getStructTopic("Turret/LeadShotPose", Pose2d.struct).publish();
+    private final StructPublisher<Pose3d> launchOriginPose = inst.getStructTopic("Field/LaunchOrigin", Pose3d.struct).publish();
     private Rotation2d m_turretFieldHeading = Rotation2d.kZero;
+    private Pose2d m_leadShotPose = new Pose2d();
+
+    /* Leading shot debug telemetry */
+    private final NetworkTable shotTable = inst.getTable("Shot");
+    private final StructPublisher<Pose2d> shotInterceptPose = shotTable.getStructTopic("InterceptPoint", Pose2d.struct).publish();
+    private final StructPublisher<Pose2d> shotPredictedRobotPose = shotTable.getStructTopic("PredictedRobotPose", Pose2d.struct).publish();
+    private final DoublePublisher shotDistance = shotTable.getDoubleTopic("DistanceMeters").publish();
+    private final DoublePublisher shotTurretAngle = shotTable.getDoubleTopic("TurretAngleDeg").publish();
+    private final DoublePublisher shotShooterRPS = shotTable.getDoubleTopic("ShooterRPS").publish();
+    private final DoublePublisher shotTrajectoryAngle = shotTable.getDoubleTopic("TrajectoryAngleDeg").publish();
+    private final DoublePublisher shotTimeOfFlight = shotTable.getDoubleTopic("TimeOfFlightSec").publish();
+    private final BooleanPublisher shotValid = shotTable.getBooleanTopic("Valid").publish();
+    private TurretUtil.ShotSolution m_latestShot = null;
+
     /* Robot pose for field positioning */
     private final NetworkTable table = inst.getTable("Pose");
     private final DoubleArrayPublisher fieldPub = table.getDoubleArrayTopic("robotPose").publish();
-    
     private final DoubleArrayPublisher turretFieldPub = table.getDoubleArrayTopic("turretPose").publish();
     private final StructArrayPublisher<Translation2d> turretToHubPub = driveStateTable.getStructArrayTopic("Turret/TurretToHub", Translation2d.struct).publish();
     private final StringPublisher fieldTypePub = table.getStringTopic(".type").publish();
@@ -98,6 +123,16 @@ public class Telemetry {
         m_turretFieldHeading = angleDegrees;
     }
 
+    /** Set the latest leading shot solution for telemetry. */
+    public void setShotSolution(TurretUtil.ShotSolution shot) {
+        m_latestShot = shot;
+    }
+
+    /** Set the field-relative pose representing where the lead shot is aimed. */
+    public void setLeadShotPose(Pose2d pose) {
+        m_leadShotPose = pose;
+    }
+
     /** Accept the swerve drive state and telemeterize it to SmartDashboard and SignalLogger. */
     public void telemeterize(SwerveDriveState state) {
         /* Telemeterize the swerve drive state */
@@ -108,6 +143,35 @@ public class Telemetry {
         driveModulePositions.set(state.ModulePositions);
         driveTimestamp.set(state.Timestamp);
         driveOdometryFrequency.set(1.0 / state.OdometryPeriod);
+
+        // Pose Predictions
+        predictedRobotPoses500ms.set(PosePrediction.Linear(state.Pose, state.Speeds, 0.5));
+        predictedRobotPoses1s.set(PosePrediction.Linear(state.Pose, state.Speeds, 1));
+        predictedRobotPoses2s.set(PosePrediction.Linear(state.Pose, state.Speeds, 2));
+
+        // predictedRobotPoses1s.set(null);
+
+        // Leading shot debug
+        if (m_latestShot != null) {
+            shotDistance.set(m_latestShot.distanceMeters);
+            shotTurretAngle.set(m_latestShot.robotRelativeAngleDegrees);
+            shotShooterRPS.set(m_latestShot.shooterSpeedRPS);
+            shotTrajectoryAngle.set(m_latestShot.trajectoryAngleDegrees);
+            shotTimeOfFlight.set(m_latestShot.timeOfFlightSeconds);
+            shotValid.set(m_latestShot.isValid);
+
+            // Publish predicted robot pose at TOF
+            Pose2d predictedAtShot = PosePrediction.Linear(state.Pose, state.Speeds, m_latestShot.timeOfFlightSeconds);
+            shotPredictedRobotPose.set(predictedAtShot);
+
+            // Publish intercept point as a Pose2d (heading = turret aim direction) for Field2d visualization
+            Rotation2d aimHeading = Rotation2d.fromDegrees(m_latestShot.robotRelativeAngleDegrees)
+                    .plus(state.Pose.getRotation());
+            shotInterceptPose.set(new Pose2d(
+                    predictedAtShot.getX() + m_latestShot.distanceMeters * aimHeading.getCos(),
+                    predictedAtShot.getY() + m_latestShot.distanceMeters * aimHeading.getSin(),
+                    aimHeading));
+        }
 
         /* Also write to log file */
         SignalLogger.writeStruct("DriveState/Pose", Pose2d.struct, state.Pose);
@@ -125,14 +189,24 @@ public class Telemetry {
         m_poseArray[2] = state.Pose.getRotation().getDegrees();
         fieldPub.set(m_poseArray);
 
-        /* Telemeterize turret field-space heading (robot translation + turret field heading) */
-        // Rotation2d turretFieldHeading = state.Pose.getRotation().plus(Rotation2d.fromDegrees(m_turretRobotRelativeDegrees));
-        Pose2d turretPose = new Pose2d(state.Pose.getTranslation(), m_turretFieldHeading);
+        /* Telemeterize turret field-space heading (turret offset from robot center + turret field heading) */
+        Translation2d turretTranslation = TurretUtil.getTurretPose(state.Pose).getTranslation();
+        Pose2d turretPose = new Pose2d(turretTranslation, m_turretFieldHeading);
         turretFieldPose.set(turretPose);
         turretFieldPub.set(new double[] { turretPose.getX(), turretPose.getY(), m_turretFieldHeading.getDegrees() });
 
         Translation2d hub = FieldConstants.getAllianceHub().toTranslation2d();
-        turretToHubPub.set(new Translation2d[] { state.Pose.getTranslation(), hub });
+        turretToHubPub.set(new Translation2d[] { turretTranslation, hub });
+
+        leadShotFieldPose.set(m_leadShotPose);
+
+        /* Publish 3D launch origin: turret XY from TurretUtil + turret Z height */
+        Pose2d turret2d = TurretUtil.getTurretPose(state.Pose);
+        launchOriginPose.set(new Pose3d(
+                turret2d.getX(),
+                turret2d.getY(),
+                Constants.Turret.kTurretOffsetZ,
+                new Rotation3d(0, 0, m_turretFieldHeading.getRadians())));
 
         /* Telemeterize each module state to a Mechanism2d */
         for (int i = 0; i < 4; ++i) {
