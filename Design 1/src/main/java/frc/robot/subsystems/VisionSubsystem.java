@@ -12,6 +12,8 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 
@@ -116,6 +118,7 @@ public class VisionSubsystem {
 
     public Optional<VisionResult> processLimelight(
             Limelight limelight,
+            ChassisSpeeds robotVelocity,
             BufferedStatusSignal<edu.wpi.first.units.measure.Angle> bufferedTurretRotations,
             double pigeonYawDeg,
             Pose2d odometryPose,
@@ -125,8 +128,9 @@ public class VisionSubsystem {
             return Optional.empty();
         }
 
+        double robotSpeedMps = Math.hypot(robotVelocity.vxMetersPerSecond, robotVelocity.vyMetersPerSecond);
         Optional<Pose2d> raw = limelight.getRawEstimatedPose();
-        Optional<Pose2d> mega = limelight.getMegaTagEstimatedPose(2);
+        Optional<Pose2d> mega = limelight.getStableEstimatedPose(robotSpeedMps);
 
         if (mega.isEmpty() || mega.get().equals(Pose2d.kZero)) {
             return Optional.empty();

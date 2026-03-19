@@ -123,7 +123,7 @@ public class Robot extends TimedRobot {
             return Optional.empty();
         }
         return Vision.processLimelight(
-            limelightOpt.get(), buffered, pigeonYaw, odom, yawRate);
+            limelightOpt.get(), Drivetrain.getState().Speeds, buffered, pigeonYaw, odom, yawRate);
     }
 
     // ---- Autonomous ----
