@@ -12,13 +12,11 @@ import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.Unit;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 
@@ -26,40 +24,20 @@ public class Constants {
 
     public static class Vision {
 
-        // public static final Transform3d kLimelightPosition = new Transform3d(
-        //     new Translation3d(
-        //         Units.inchesToMeters(-11.919),
-        //         Units.inchesToMeters(1.715),
-        //         Units.inchesToMeters(19.195)),  // TODO: Verify that this is from the ground.
-        //     new Rotation3d(
-        //         Units.degreesToRadians(0),      // Roll: 0 degrees
-        //         Units.degreesToRadians(-60.0),  // Pitch: negative = nose up (WPILib NWU convention)
-        //         Units.degreesToRadians(0)       // Yaw: degrees
-        //     ))
-        // ;
+        // Camera offset from turret pivot in turret-local frame (from CAD)
+        public static final double kCamFromTurretX = Units.inchesToMeters(6.567);
+        public static final double kCamFromTurretY = Units.inchesToMeters(0);
+        public static final double kCamFromTurretZ = Units.inchesToMeters(5.4);
 
-        public static final Translation3d kLimelightPositionOnTurret = new Translation3d(
-        Units.inchesToMeters(6.567),    // Y ON CAD
-        Units.inchesToMeters(0),        // X
-        Units.inchesToMeters(5.4));       // Z
-
-        public static final Rotation3d kLimelightRotationOnturret = new Rotation3d(
-            0,
-            Units.degreesToRadians(-30),
-            0
-        );
-
-
-
+        public static final Rotation3d kLimelightRotation = new Rotation3d(
+            0, Units.degreesToRadians(-30), 0);
     }
+
     public static class Turret {
 
         public static final int kTurretCanID = 44; // CAN ID (dimensionless)
 
-        // WCP Throughbore CANcoder on output shaft
-        // public static final int kThroughboreCanID = 58;
-
-        public static final double kTurretOffsetX  = Units.inchesToMeters(-6.75); // 6.75X offset (forward +X, backward -X) from robot center to turret (meters) 
+        public static final double kTurretOffsetX  = Units.inchesToMeters(-6.75); // X offset (forward +X, backward -X) from robot center to turret (meters)
         public static final double kTurretOffsetY = Units.inchesToMeters(5.75); // Y offset (left +Y, right -Y) from robot center to turret (meters)
         public static final double kTurretOffsetZ = Units.inchesToMeters(13.15); // Z offset (up +Z, down -Z) from robot center to turret (meters)
         public static final double kTurretRezeroAngleDegrees = 0.0; // Rezero position in degrees
@@ -77,10 +55,10 @@ public class Constants {
 
         // Motor and control constants
         public static final double kGearRatio = (48.0 / 14.0) * (120.0 / 35.0); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
-        public static final double kKP = 40; // Proportional gain (dimensionless)
-        public static final double kKI = 3; // Integral gain (dimensionless)
-        public static final double kKD = 4; // Derivative gain (dimensionless)
-        public static final double kKS = 3; // Static friction feedforward (volts)
+        public static final double kKP = 25; // Proportional gain (dimensionless)
+        public static final double kKI = 0.2; // Integral gain (dimensionless)
+        public static final double kKD = 0.8; // Derivative gain (dimensionless)
+        public static final double kKS = 1; // Static friction feedforward (volts)
         public static final double kKV = 2; // Velocity feedforward (volt-seconds per radian)
         public static final double kKA = 0; // Acceleration feedforward (volt-seconds² per radian)
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
@@ -111,14 +89,15 @@ public class Constants {
         public static final double kD = 0.0;
         public static final double kV = 0.12;
     
-        public static final double kMaxSpeedRPS       = 100.0;
+        public static final double kMaxSpeedRPS       = 80.0;
         public static final double kMinSpeedRPS       = 15.0;
         public static final double kSpeedToleranceRPS = 2.0;
+        public static final double kSimFireRateSeconds = 0.2; // min time between shots in sim
     }
 
     public static final class Intake {
         public static final int kIntakeMotorCanID = 18;         // KrakenX60 (TalonFX) — intake shaft
-        public static final int kExtensionMotorCanID = 53;      // NEO (SparkMax) — linear extension
+        public static final int kExtensionMotorCanID = 53;      // NEO (SparkMax) — linear extension // TODO: confirm CAN ID
 
         // 14t driving 48t gear
         public static final double kExtensionGearRatio = 48.0 / 14.0; // motor rotations per output rotation
@@ -128,31 +107,20 @@ public class Constants {
         public static final double kExtensionStallThreshold = 30;  // stall detection threshold (amps) — must be below kExtensionCurrentLimit
         public static final double kExtensionStallDurationSeconds = 0.25; // sustain overcurrent this long before stopping
         public static final double kHoldSpeed = 0.75; // duty cycle to hold game pieces while extended
-    }
-
-    public static final class Robot {
-        public static final double kMassLbs = 120.0;
-        public static final double kMOI = 6.883; // kg*m^2 TODO: measure via SysId
-        public static final double kWheelCOF = 1.2;
-        public static final int kMotorsPerModule = 1;
-    }
-
-    public static final class Auto {
-        public static final double kTranslationKP = 10.0;
-        public static final double kTranslationKI = 0.0;
-        public static final double kTranslationKD = 0.0;
-        public static final double kRotationKP = 7.0;
-        public static final double kRotationKI = 0.0;
-        public static final double kRotationKD = 0.0;
-    }
-
-    public static final class Spindexer {
-        public static final double kDefaultFeedSpeed = 0.8;
+        public static final int kMaxGamePieces = 30; // max fuel held at once in sim
     }
 
     public static final class Drivetrain {
         public static final double kCruiseSpeed = 1.25;
         public static final AngularVelocity kCruiseAngularRate = RotationsPerSecond.of(0.5);
+    }
+
+    public static final class Simulation {
+        public static final double kRobotMassKg = 50.0;        // ~110 lbs with bumpers
+        public static final double kBumperLengthMeters = 0.762; // 30" frame
+        public static final double kBumperWidthMeters = 0.762;  // 30" frame
+        public static final double kIntakeWidthMeters = 0.70;   // spans most of front
+        public static final double kIntakeExtensionMeters = 0.15;
     }
 
     public static final class Climber {

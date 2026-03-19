@@ -1,5 +1,7 @@
 package frc.robot.Limelight;
 
+import static edu.wpi.first.units.Units.MetersPerSecond;
+
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -9,17 +11,18 @@ import java.util.Optional;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import frc.robot.Limelight.LimelightHelpers.PoseEstimate;
+import frc.robot.generated.TunerConstants;
 
 public class Limelight {
 
     protected static final Map<String, Limelight> REGISTERED_LIMELIGHTS = new HashMap<>();
 
-    private static final int SAMPLE_SIZE = 4;
+    private static final int SAMPLE_SIZE = 12;
     private static final double DISPLACEMENT_ERROR_MARGIN = 0.6096;
-    private static final double MAX_ROBOT_SPEED = 4.7244;
-    private static final double SPEED_MARGIN_MULTIPLIER = 1.2;
-    private static final double FAR_TAG_DISTANCE_METERS = 4.0;
-    private static final double STALE_THRESHOLD_SECONDS = 0.5;
+    private static final double MAX_ROBOT_SPEED = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
+    private static final double SPEED_MARGIN_MULTIPLIER = 1;
+    private static final double FAR_TAG_DISTANCE_METERS = 5;
+    private static final double STALE_THRESHOLD_SECONDS = 0.25;
     private static final int MIN_TAGS_FOR_STABLE_POSE = 2;
 
     public static void registerDevice(String name) {
@@ -86,6 +89,10 @@ public class Limelight {
 
     public double getLastAvgTagDist() {
         return lastPoseEstimate != null ? lastPoseEstimate.avgTagDist : Double.MAX_VALUE;
+    }
+
+    public int getLastTagCount() {
+        return lastPoseEstimate != null ? lastPoseEstimate.tagCount : 0;
     }
 
     public double getLastTimestampSeconds() {

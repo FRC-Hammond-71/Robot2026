@@ -5,6 +5,14 @@ import frc.robot.Constants;
 
 public class LimelightOnTurretUtils {
 
+    /** All intermediate values from the camera→robot transform, for debugging. */
+    public record TransformDebug(
+        double camFromTurretX, double camFromTurretY,
+        double camInRobotX, double camInRobotY,
+        double robotHeadingRad,
+        Pose2d robotPose
+    ) {}
+
     /**
      * Converts a camera field pose to a robot field pose using 2D math.
      *
@@ -14,10 +22,18 @@ public class LimelightOnTurretUtils {
      * @return Robot center's field pose
      */
     public static Pose2d getRobotPoseFromCameraPose(Pose2d cameraFieldPose, double turretAngleRad) {
+        return getRobotPoseFromCameraPoseDebug(cameraFieldPose, turretAngleRad).robotPose;
+    }
+
+    /**
+     * Same transform as {@link #getRobotPoseFromCameraPose}, but returns all
+     * intermediate values for telemetry debugging.
+     */
+    public static TransformDebug getRobotPoseFromCameraPoseDebug(Pose2d cameraFieldPose, double turretAngleRad) {
 
         // Camera XY offset from turret pivot (in turret-local frame)
-        double camFromTurretX = Constants.Vision.kLimelightPositionOnTurret.getX();
-        double camFromTurretY = Constants.Vision.kLimelightPositionOnTurret.getY();
+        double camFromTurretX = Constants.Vision.kCamFromTurretX;
+        double camFromTurretY = Constants.Vision.kCamFromTurretY;
 
         // Rotate camera offset by turret angle, add turret pivot offset → camera in robot frame
         double cos = Math.cos(turretAngleRad);
@@ -34,6 +50,7 @@ public class LimelightOnTurretUtils {
         double robotX = cameraFieldPose.getX() - (cosH * camInRobotX - sinH * camInRobotY);
         double robotY = cameraFieldPose.getY() - (sinH * camInRobotX + cosH * camInRobotY);
 
-        return new Pose2d(robotX, robotY, new Rotation2d(robotHeadingRad));
+        Pose2d robotPose = new Pose2d(robotX, robotY, new Rotation2d(robotHeadingRad));
+        return new TransformDebug(camFromTurretX, camFromTurretY, camInRobotX, camInRobotY, robotHeadingRad, robotPose);
     }
 }

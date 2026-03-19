@@ -5,6 +5,8 @@ import static edu.wpi.first.units.Units.*;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
+
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
@@ -12,49 +14,39 @@ import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import com.pathplanner.lib.auto.AutoBuilder;
-import com.pathplanner.lib.config.ModuleConfig;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
-import com.pathplanner.lib.path.PathConstraints;
 
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.kinematics.Odometry;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.trajectory.constraint.MaxVelocityConstraint;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.MomentOfInertia;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Notifier;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
-import frc.robot.Constants;
 import frc.robot.Limelight.Limelight;
-import frc.robot.util.LimelightOnTurretUtils;
-
-import frc.robot.Limelight.LimelightHelpers;
+ 
 import frc.robot.BufferedStatusSignal;
+ 
 import com.ctre.phoenix6.Timestamp.TimestampSource;
 import com.ctre.phoenix6.StatusSignal;
 import edu.wpi.first.units.measure.Angle;
-import frc.robot.generated.FieldConstants;
 import frc.robot.generated.TunerConstants;
-import frc.robot.util.dashboard.TurretUtil;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
+ 
+import frc.robot.utils.simulation.MapleSimSwerveDrivetrain;
 
 // #region WARNING
 
@@ -64,41 +56,24 @@ import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Subsystem {
     private static final double kSimLoopPeriod = 0.004; // 4 ms
     private Notifier m_simNotifier = null;
-    private double m_lastSimTime;
     RobotConfig config;
     /* Blue alliance sees forward as 0 degrees (toward red alliance wall) */
     private static final Rotation2d kBlueAlliancePerspectiveRotation = Rotation2d.kZero;
     /* Red alliance sees forward as 180 degrees (toward blue alliance wall) */
     private static final Rotation2d kRedAlliancePerspectiveRotation = Rotation2d.k180deg;
-    private static final PathConstraints PathConstraints = null;
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
 
     /** Swerve request to apply during robot-centric path following */
     private final SwerveRequest.ApplyRobotSpeeds m_pathApplyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
     private StructPublisher<Pose2d> posePublisher = NetworkTableInstance.getDefault()
-            .getStructTopic("rPose", Pose2d.struct).publish();
+        .getStructTopic("rPose", Pose2d.struct).publish();
 
-    private StructPublisher<Pose2d> llRawPosePublisher = NetworkTableInstance.getDefault()
-            .getStructTopic("ll_RawPose", Pose2d.struct).publish();
-
-    private StructPublisher<Pose2d> llMegaTagPosePublisher = NetworkTableInstance.getDefault()
-            .getStructTopic("ll_MegaTagPose", Pose2d.struct).publish();
-
-    private StructPublisher<Pose2d> blehPublisher = NetworkTableInstance.getDefault()
-            .getStructTopic("ll_Bruh", Pose2d.struct).publish();
-
-    private StructPublisher<Pose2d> turretDirectionPublisher = NetworkTableInstance.getDefault()
-            .getStructTopic("SmartDashboard/turretPose", Pose2d.struct).publish();
-
-    // private StructPublisher<Pose2d> llStablePosePublisher =
-    // NetworkTableInstance.getDefault()
-    // .getStructTopic("ll_StablePose", Pose2d.struct).publish();
-
-    // public Odometry odometry;
-
-    private StatusSignal<Angle> m_turretPositionSignal = null;
     private BufferedStatusSignal<Angle> m_bufferedTurretAngle = null;
+
+    public BufferedStatusSignal<Angle> getBufferedTurretAngle() {
+        return m_bufferedTurretAngle;
+    }
 
     /* Swerve requests to apply during SysId characterization */
     private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
@@ -125,6 +100,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * SysId routine for characterizing steer. This is used to find PID gains for
      * the steer motors.
      */
+    @SuppressWarnings("unused")
     private final SysIdRoutine m_sysIdRoutineSteer = new SysIdRoutine(
             new SysIdRoutine.Config(
                     null, // Use default ramp rate (1 V/s)
@@ -144,6 +120,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * See the documentation of SwerveRequest.SysIdSwerveRotation for info on
      * importing the log to SysId.
      */
+    @SuppressWarnings("unused")
     private final SysIdRoutine m_sysIdRoutineRotation = new SysIdRoutine(
             new SysIdRoutine.Config(
                     /* This is in radians per second², but SysId only supports "volts per second" */
@@ -178,111 +155,22 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @param drivetrainConstants Drivetrain-wide constants for the swerve drive
      * @param modules             Constants for each specific module
      */
-    public CommandSwerveDrivetrain(
-            StatusSignal<Angle> turretPositionSignal,
-            SwerveDrivetrainConstants drivetrainConstants,
-            SwerveModuleConstants<?, ?, ?>... modules) {
-
-        // super(drivetrainConstants, 0.004, modules);
-        super(drivetrainConstants, modules);
-
-        m_turretPositionSignal = turretPositionSignal;
-        m_bufferedTurretAngle = new BufferedStatusSignal<Angle>(turretPositionSignal, TimestampSource.System, 20, 2000);
-
-        if (Utils.isSimulation()) {
-            startSimThread();
-        }
-        configureAutoBuilder();
-    }
-
-    public CommandSwerveDrivetrain(
-            SwerveDrivetrainConstants drivetrainConstants,
-            SwerveModuleConstants<?, ?, ?>... modules) {
-
-        // super(drivetrainConstants, 0.004, modules);
-        super(drivetrainConstants, modules);
-
-        if (Utils.isSimulation()) {
-            startSimThread();
-        }
-        configureAutoBuilder();
+    public void setBufferedTurretAngle(StatusSignal<Angle> turretPositionSignal) {
+        m_bufferedTurretAngle = new BufferedStatusSignal<>(turretPositionSignal, TimestampSource.System, 20, 2000);
     }
 
     public void updateOdometry() {
-        Limelight.useDevice("limelight").ifPresent(limelight -> {
-            // Compute current linear speed from drivetrain
-            ChassisSpeeds speeds = getState().Speeds;
-            double robotSpeedMps = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
-
-            // Single NT fetch: getStableEstimatedPose fetches internally,
-            // then getLastRawPose reuses the cached estimate
-            Optional<Pose2d> stablePose = limelight.getStableEstimatedPose(robotSpeedMps);
-
-            // Publish raw pose for telemetry (no extra NT fetch)
-            limelight.getLastRawPose().ifPresent(rawPose -> {
-                if (!rawPose.equals(Pose2d.kZero)) {
-                    this.llRawPosePublisher.set(rawPose);
-                }
-            });
-
-            if (stablePose.isPresent()) {
-                var res = stablePose.get();
-
-                // Use the estimate's own timestamp instead of separate latency fetch
-                double visionTimestampSeconds = limelight.getLastTimestampSeconds();
-
-                double turretRotations = m_bufferedTurretAngle.getValueAt(visionTimestampSeconds,
-                        TimestampSource.System);
-                // Turret angle relative to robot forward (CCW+)
-                double originRotations = Constants.Turret.kOriginAngle.in(Rotations);
-                double turretAngleRad = (originRotations - turretRotations) * 2.0 * Math.PI;
-
-                // Camera heading = pigeon heading + turret angle (camera yaw = 0° in turret frame)
-                Rotation2d pigeonHeading = Rotation2d.fromDegrees(getPigeon2().getYaw().getValueAsDouble());
-                Rotation2d cameraHeading = pigeonHeading.plus(new Rotation2d(turretAngleRad));
-                Pose2d correctedCameraPose = new Pose2d(res.getTranslation(), cameraHeading);
-
-                // 2D transform: camera field pose → robot field pose
-                Pose2d robotPose = LimelightOnTurretUtils.getRobotPoseFromCameraPose(correctedCameraPose, turretAngleRad);
-                Pose2d finalPose = new Pose2d(robotPose.getTranslation(), pigeonHeading);
-                blehPublisher.set(finalPose);
-
-                // Scale vision std devs by tag distance: closer tags = more trust
-                double avgTagDist = limelight.getLastAvgTagDist();
-                double xyStdDev = 0.5 * (1.0 + avgTagDist);
-                addVisionMeasurement(finalPose, visionTimestampSeconds, VecBuilder.fill(xyStdDev, xyStdDev, 1e9));
-
-                this.llMegaTagPosePublisher.set(finalPose);
-            }
-        });
+        // publish current drivetrain pose
         this.posePublisher.set(this.getState().Pose);
     }
 
     public void configureAutoBuilder() {
         try {
-            RobotConfig config = new RobotConfig(
-                    edu.wpi.first.units.Units.Pounds.of(Constants.Robot.kMassLbs),
-                    edu.wpi.first.units.Units.KilogramSquareMeters.of(Constants.Robot.kMOI),
-                    new ModuleConfig(
-                            TunerConstants.kWheelRadius,
-                            TunerConstants.kSpeedAt12Volts,
-                            Constants.Robot.kWheelCOF,
-                            DCMotor.getKrakenX60(Constants.Robot.kMotorsPerModule),
-                            TunerConstants.kDriveGearRatio,
-                            TunerConstants.kSlipCurrent,
-                            Constants.Robot.kMotorsPerModule
-                    ),
-                    new Translation2d[] {
-                        new Translation2d(TunerConstants.kFrontLeftXPos, TunerConstants.kFrontLeftYPos),
-                        new Translation2d(TunerConstants.kFrontRightXPos, TunerConstants.kFrontRightYPos),
-                        new Translation2d(TunerConstants.kBackLeftXPos, TunerConstants.kBackLeftYPos),
-                        new Translation2d(TunerConstants.kBackRightXPos, TunerConstants.kBackRightYPos)
-                    }
-            );
+            var config = RobotConfig.fromGUISettings();
 
             AutoBuilder.configure(
                     () -> getState().Pose, // Supplier of current robot pose
-                    this::resetPose, // Consumer for seeding pose against auto
+                    (pose) -> {}, // Consumer for seeding pose against auto
                     () -> getState().Speeds, // Supplier of current robot speeds
                     // Consumer of ChassisSpeeds and feedforwards to drive the robot
                     (speeds, feedforwards) -> setControl(
@@ -291,8 +179,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                                     .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())
                                     ),
                     new PPHolonomicDriveController(
-                            new PIDConstants(Constants.Auto.kTranslationKP, Constants.Auto.kTranslationKI, Constants.Auto.kTranslationKD),
-                            new PIDConstants(Constants.Auto.kRotationKP, Constants.Auto.kRotationKI, Constants.Auto.kRotationKD)),
+                            // PID constants for translation
+                            new PIDConstants(5, 0, 0),
+                            // PID constants for rotation
+                            new PIDConstants(7, 0, 0)),
                     config,
                     // Assume the path needs to be flipped for Red vs Blue, this is normally the
                     // case
@@ -320,9 +210,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public boolean resetPoseWithLimelight() {
-        Optional<Pose2d> es = Limelight.useDevice("limelight")
-                .flatMap(Limelight::getRawEstimatedPose);
+        Optional<Limelight> limelightOpt = Limelight.useDevice("limelight");
+        if (limelightOpt.isEmpty()) return false;
 
+        Optional<Pose2d> es = limelightOpt.get().getRawEstimatedPose();
         if (es.isPresent()) {
             this.resetPose(es.get());
             return true;
@@ -346,13 +237,19 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @param modules                 Constants for each specific module
      */
     public CommandSwerveDrivetrain(
-            SwerveDrivetrainConstants drivetrainConstants,
-            double odometryUpdateFrequency,
-            SwerveModuleConstants<?, ?, ?>... modules) {
-        super(drivetrainConstants, odometryUpdateFrequency, modules);
+        SwerveDrivetrainConstants drivetrainConstants,
+        double odometryUpdateFrequency,
+        SwerveModuleConstants<?, ?, ?>... modules) {
+        super(
+                drivetrainConstants,
+                odometryUpdateFrequency,
+                // modules
+                MapleSimSwerveDrivetrain.regulateModuleConstantsForSimulation(modules));
         if (Utils.isSimulation()) {
+            // start simulation thread; VisionSubsystem will be injected by Robot
             startSimThread();
         }
+        configureAutoBuilder();
     }
 
     /**
@@ -383,16 +280,23 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @param modules                   Constants for each specific module
      */
     public CommandSwerveDrivetrain(
-            SwerveDrivetrainConstants drivetrainConstants,
-            double odometryUpdateFrequency,
-            Matrix<N3, N1> odometryStandardDeviation,
-            Matrix<N3, N1> visionStandardDeviation,
-            SwerveModuleConstants<?, ?, ?>... modules) {
-        super(drivetrainConstants, odometryUpdateFrequency, odometryStandardDeviation, visionStandardDeviation,
-                modules);
+        SwerveDrivetrainConstants drivetrainConstants,
+        double odometryUpdateFrequency,
+        Matrix<N3, N1> odometryStandardDeviation,
+        Matrix<N3, N1> visionStandardDeviation,
+        SwerveModuleConstants<?, ?, ?>... modules) {
+        super(
+                drivetrainConstants,
+                odometryUpdateFrequency,
+                odometryStandardDeviation,
+                visionStandardDeviation,
+                // modules
+                MapleSimSwerveDrivetrain.regulateModuleConstantsForSimulation(modules));
         if (Utils.isSimulation()) {
+            // start simulation thread; VisionSubsystem will be injected by Robot
             startSimThread();
         }
+
     }
 
     /**
@@ -408,9 +312,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     @Override
     public void resetPose(Pose2d pose) {
-
-        posePublisher.set(pose);
-
+        if (this.mapleSimSwerveDrivetrain != null)
+            mapleSimSwerveDrivetrain.mapleSimDrive.setSimulationWorldPose(pose);
+        Timer.delay(0.05); // Wait for simulation to update
         super.resetPose(pose);
     }
 
@@ -450,13 +354,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
          * occurs during testing.
          */
 
-        // LimelightHelpers.getBotPose2d_wpiBlue("limelight");
-
         SmartDashboard.putBoolean("Pigeon Connected", getPigeon2().isConnected());
-        Pose2d robotPose = getState().Pose;
-        Translation2d hub = FieldConstants.getAllianceHub().toTranslation2d();
-        SmartDashboard.putNumber("DistanceToHub/Robot", robotPose.getTranslation().getDistance(hub));
-        SmartDashboard.putNumber("DistanceToHub/Turret", TurretUtil.getTurretPose(robotPose).getTranslation().getDistance(hub));
+
         SmartDashboard.putNumber("CommandSwerveDrivetrain/Pigeon/Heading",
                 getPigeon2().getYaw(true).getValue().in(Degrees));
         SmartDashboard.putNumber("CommandSwerveDrivetrain/Fused/Heading", getState().Pose.getRotation().getDegrees());
@@ -478,19 +377,36 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     }
 
+    // https://github.com/Shenzhen-Robotics-Alliance/CTRE-Swerve-MapleSim/tree/main?tab=readme-ov-file#modify-the-drive-subsystem-code
+    private MapleSimSwerveDrivetrain mapleSimSwerveDrivetrain = null;
     private void startSimThread() {
-        m_lastSimTime = Utils.getCurrentTimeSeconds();
-
+        mapleSimSwerveDrivetrain = new MapleSimSwerveDrivetrain(
+                Seconds.of(kSimLoopPeriod),
+                // TODO: modify the following constants according to your robot
+                Pounds.of(115), // robot weight
+                Inches.of(30), // bumper length
+                Inches.of(30), // bumper width
+                DCMotor.getKrakenX60(1), // drive motor type
+                DCMotor.getFalcon500(1), // steer motor type
+                1.2, // wheel COF
+                getModuleLocations(),
+                getPigeon2(),
+                getModules(),
+                TunerConstants.FrontLeft,
+                TunerConstants.FrontRight,
+                TunerConstants.BackLeft,
+                TunerConstants.BackRight);
         /* Run simulation at a faster rate so PID gains behave more reasonably */
         m_simNotifier = new Notifier(() -> {
-            final double currentTime = Utils.getCurrentTimeSeconds();
-            double deltaTime = currentTime - m_lastSimTime;
-            m_lastSimTime = currentTime;
+            // Update drivetrain sim
+            mapleSimSwerveDrivetrain.update();
 
-            /* use the measured time delta, get battery voltage from WPILib */
-            updateSimState(deltaTime, RobotController.getBatteryVoltage());
         });
         m_simNotifier.startPeriodic(kSimLoopPeriod);
+    }
+
+    public SwerveDriveSimulation getMapleSimSwerveDrivetrain() {
+        return mapleSimSwerveDrivetrain.mapleSimDrive;
     }
 
     /*
