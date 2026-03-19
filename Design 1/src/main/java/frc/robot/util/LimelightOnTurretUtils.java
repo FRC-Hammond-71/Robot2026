@@ -16,8 +16,8 @@ public class LimelightOnTurretUtils {
     public static Pose2d getRobotPoseFromCameraPose(Pose2d cameraFieldPose, double turretAngleRad) {
 
         // Camera XY offset from turret pivot (in turret-local frame)
-        double camFromTurretX = Constants.Vision.kCamFromTurretX;
-        double camFromTurretY = Constants.Vision.kCamFromTurretY;
+        double camFromTurretX = Constants.Vision.kLimelightPositionOnTurret.getX();
+        double camFromTurretY = Constants.Vision.kLimelightPositionOnTurret.getY();
 
         // Rotate camera offset by turret angle, add turret pivot offset → camera in robot frame
         double cos = Math.cos(turretAngleRad);

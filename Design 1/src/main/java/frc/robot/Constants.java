@@ -38,12 +38,12 @@ public class Constants {
         //     ))
         // ;
 
-        public static final Translation3d kLimelightPosition = new Translation3d(
+        public static final Translation3d kLimelightPositionOnTurret = new Translation3d(
         Units.inchesToMeters(6.567),    // Y ON CAD
         Units.inchesToMeters(0),        // X
         Units.inchesToMeters(5.4));       // Z
 
-        public static final Rotation3d kLimelightRotation = new Rotation3d(
+        public static final Rotation3d kLimelightRotationOnturret = new Rotation3d(
             0,
             Units.degreesToRadians(-30),
             0
@@ -51,12 +51,6 @@ public class Constants {
 
 
 
-        // Camera XY offset from turret pivot in turret-local frame (meters, 2D only)
-        // These use the camera's absolute XY minus the turret pivot's absolute XY
-        // public static final double kCamFromTurretX =
-        //     Units.inchesToMeters(0) - Turret.kTurretOffsetX;
-        // public static final double kCamFromTurretY =
-        //     Units.inchesToMeters(6.637) - Turret.kTurretOffsetY;
     }
     public static class Turret {
 
@@ -65,7 +59,7 @@ public class Constants {
         // WCP Throughbore CANcoder on output shaft
         // public static final int kThroughboreCanID = 58;
 
-        public static final double kTurretOffsetX  = Units.inchesToMeters(6.75); // 6.75X offset (forward +X, backward -X) from robot center to turret (meters) 
+        public static final double kTurretOffsetX  = Units.inchesToMeters(-6.75); // 6.75X offset (forward +X, backward -X) from robot center to turret (meters) 
         public static final double kTurretOffsetY = Units.inchesToMeters(5.75); // Y offset (left +Y, right -Y) from robot center to turret (meters)
         public static final double kTurretOffsetZ = Units.inchesToMeters(13.15); // Z offset (up +Z, down -Z) from robot center to turret (meters)
         public static final double kTurretRezeroAngleDegrees = 0.0; // Rezero position in degrees

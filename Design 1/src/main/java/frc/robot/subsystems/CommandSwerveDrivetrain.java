@@ -233,9 +233,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
                 double turretRotations = m_bufferedTurretAngle.getValueAt(visionTimestampSeconds,
                         TimestampSource.System);
-                // kOriginAngle = 180° → motor resets to 0.5 rot at robot-forward.
-                // Turret angle relative to robot forward (CCW+) = (0.5 - turretRotations) * 2π.
-                double turretAngleRad = (0.5 - turretRotations) * 2.0 * Math.PI;
+                // Turret angle relative to robot forward (CCW+)
+                double originRotations = Constants.Turret.kOriginAngle.in(Rotations);
+                double turretAngleRad = (originRotations - turretRotations) * 2.0 * Math.PI;
 
                 // Camera heading = pigeon heading + turret angle (camera yaw = 0° in turret frame)
                 Rotation2d pigeonHeading = Rotation2d.fromDegrees(getPigeon2().getYaw().getValueAsDouble());

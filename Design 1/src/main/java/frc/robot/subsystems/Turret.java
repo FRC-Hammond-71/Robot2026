@@ -14,7 +14,7 @@ import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.NeutralOut;
-import com.ctre.phoenix6.controls.PositionVoltage;
+import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
@@ -75,7 +75,7 @@ public class Turret extends SubsystemBase {
   // Motor controller
   private final TalonFX motor;
   private final NeutralOut neutralOutRequest;
-  private final PositionVoltage positionRequest;
+  private final MotionMagicVoltage positionRequest;
   private final StatusSignal<Angle> positionSignal;
   private final StatusSignal<AngularVelocity> velocitySignal;
   private final StatusSignal<Voltage> voltageSignal;
@@ -97,7 +97,7 @@ public class Turret extends SubsystemBase {
 
     // Create control requests
     neutralOutRequest = new NeutralOut();
-    positionRequest = new PositionVoltage(0).withSlot(0);
+    positionRequest = new MotionMagicVoltage(0).withSlot(0);
     // get status signals
     positionSignal = motor.getPosition();
     velocitySignal = motor.getVelocity();
@@ -135,6 +135,10 @@ public class Turret extends SubsystemBase {
 
     config.Feedback.RotorToSensorRatio = 1; // motor rotations per output (CANcoder) rotation
     config.Feedback.SensorToMechanismRatio = gearRatio;   // CANcoder is on the output shaft
+
+    // Motion Magic velocity/acceleration limits (convert rad/s → rot/s)
+    config.MotionMagic.MotionMagicCruiseVelocity = maxVelocity / (2.0 * Math.PI);
+    config.MotionMagic.MotionMagicAcceleration = maxAcceleration / (2.0 * Math.PI);
 
     // Enforce angle limits in hardware so PID cannot drive outside the range
     config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
