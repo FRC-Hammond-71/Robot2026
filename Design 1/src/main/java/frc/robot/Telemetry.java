@@ -135,6 +135,12 @@ public class Telemetry {
 
     /** Accept the swerve drive state and telemeterize it to SmartDashboard and SignalLogger. */
     public void telemeterize(SwerveDriveState state) {
+
+        Pose2d robotPose = state.Pose;
+        Translation2d hub = FieldConstants.getAllianceHub().toTranslation2d();
+        SmartDashboard.putNumber("DistanceToHub/Robot", robotPose.getTranslation().getDistance(hub));
+        SmartDashboard.putNumber("DistanceToHub/Turret", TurretUtil.getTurretPose(robotPose).getTranslation().getDistance(hub));
+
         /* Telemeterize the swerve drive state */
         drivePose.set(state.Pose);
         driveSpeeds.set(state.Speeds);
@@ -195,7 +201,7 @@ public class Telemetry {
         turretFieldPose.set(turretPose);
         turretFieldPub.set(new double[] { turretPose.getX(), turretPose.getY(), m_turretFieldHeading.getDegrees() });
 
-        Translation2d hub = FieldConstants.getAllianceHub().toTranslation2d();
+        // Translation2d hub = FieldConstants.getAllianceHub().toTranslation2d();
         turretToHubPub.set(new Translation2d[] { turretTranslation, hub });
 
         leadShotFieldPose.set(m_leadShotPose);

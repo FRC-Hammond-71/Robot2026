@@ -167,11 +167,13 @@ public class RobotContainer {
 				.and(Controllers.Joystick.b())
 				.whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(45, driverController));
 
+		// RobotModeTriggers.teleop().and(operator.y()).onTrue(spindexer.counterClockwiseCommand(0.8));
+
 		RobotModeTriggers.teleop()
 				.and(Controllers.Joystick.x())
 				.whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(70, driverController));
 
-		Controllers.Joystick.y().onTrue(Robot.Spindexer.counterClockwiseCommand(0.5));
+		RobotModeTriggers.teleop().and(Controllers.Joystick.y()).onTrue(Robot.Spindexer.counterClockwiseCommand(Constants.Spindexer.kIndexingSpeed));
 
 		RobotModeTriggers.teleop()
 				.and(Controllers.Joystick.leftBumper())
@@ -189,7 +191,7 @@ public class RobotContainer {
 				.onFalse(Robot.Intake.toggleExtensionCommand());
 
 		configureTestBindingsForShooterTuning();
-		configureTestBindingsForManualShootingAndTurret();
+		// configureTestBindingsForManualShootingAndTurret();
 
 		Robot.Drivetrain.registerTelemetry(state -> {
 
@@ -232,7 +234,7 @@ public class RobotContainer {
 		RobotModeTriggers.test().whileTrue(Commands.runEnd(() -> {
 
 			if (Controllers.Joystick.getLeftTriggerAxis() > 0.2) {
-				Robot.Spindexer.clockwise(0.5);
+				Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
 			} else {
 				Robot.Spindexer.stop();
 			}
@@ -246,7 +248,7 @@ public class RobotContainer {
 			Robot.Shooter.stop();
 			Robot.Spindexer.stop();
 
-		}));
+		}, Robot.Shooter, Robot.Spindexer));
 
 		RobotModeTriggers.test()
 				.and(Controllers.Joystick.pov(270))
@@ -266,12 +268,11 @@ public class RobotContainer {
 
 	private void configureTestBindingsForShooterTuning() {
 
-		Controllers.Joystick.b().onTrue(new ShooterTuningCommand(
-				Robot.Shooter,
+		RobotModeTriggers.test().and(Controllers.Joystick.b()).onTrue(new ShooterTuningCommand(Robot.Shooter,
 				Robot.Spindexer,
 				RotationsPerSecond.of(Constants.Shooter.kMinSpeedRPS),
 				RotationsPerSecond.of(Constants.Shooter.kMaxSpeedRPS),
-				RotationsPerSecond.of(2.5),
+				RotationsPerSecond.of(1),
 				() -> Controllers.Joystick.y().getAsBoolean(),
 				() -> Controllers.Joystick.a().getAsBoolean(),
 				() -> Controllers.Joystick.x().getAsBoolean()));

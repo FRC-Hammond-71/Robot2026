@@ -8,6 +8,7 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.Constants;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SpindexerSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
@@ -87,7 +88,7 @@ public class ShooterTuningCommand extends Command {
             spinning = true;
             spinTimer.restart();
 
-            spindexer.clockwise(0.5);
+            spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
             shooter.setVelocity(current.in(RotationsPerSecond));
         } else if (nextReleased) {
             current = current.plus(interval);

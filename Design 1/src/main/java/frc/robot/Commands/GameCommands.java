@@ -14,10 +14,10 @@ import edu.wpi.first.math.util.Units;
 
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
-
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-
+import frc.robot.Constants;
 import frc.robot.Robot;
 import frc.robot.generated.FieldConstants;
 import frc.robot.util.dashboard.TurretUtil;
@@ -113,27 +113,29 @@ public class GameCommands {
 
                                 Commands.parallel(
 
-                                        new ShakeExtensionCommand(
-                                                Robot.Intake,
-                                                0.5,
-                                                Duration.ofSeconds(2)),
+                                        // new ShakeExtensionCommand(
+                                        //         Robot.Intake,
+                                        //         0.5,
+                                        //         Duration.ofSeconds(2)),
 
                                         Commands.run(() -> {
 
                                             var pose = Robot.Drivetrain.getState().Pose;
 
-                                            TurretUtil.ShotSolution solution = TurretUtil.computeLeadingShot(pose, Robot.Drivetrain.getState().Speeds, target);
+                                            TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
+
+                                            SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
 
                                             if (solution.isValid) {
 
-                                                Robot.Spindexer.clockwise(0.5);
+                                                Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
                                                 Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
 
-                                                controller.ifPresent(c -> c.setRumble(RumbleType.kBothRumble, 0));
+                                                // controller.ifPresent(c -> c.setRumble(RumbleType.kBothRumble, 0));
 
                                             } else {
 
-                                                controller.ifPresent( c -> c.setRumble(RumbleType.kBothRumble, 1));
+                                                // controller.ifPresent( c -> c.setRumble(RumbleType.kBothRumble, 1));
                                             }
 
                                         }, Robot.Shooter, Robot.Spindexer)
@@ -145,10 +147,10 @@ public class GameCommands {
                             Robot.Shooter.stop();
                             Robot.Spindexer.stop();
 
-                            controller.ifPresent(
-                                    c -> c.setRumble(
-                                            RumbleType.kBothRumble,
-                                            0));
+                        //     controller.ifPresent(
+                        //             c -> c.setRumble(
+                        //                     RumbleType.kBothRumble,
+                        //                     0));
                         })
         )
         .withName("AimAndShoot-" + target);
@@ -165,11 +167,11 @@ public class GameCommands {
             TurretUtil.ShotSolution solution =
                     TurretUtil.computeShotSolution(pose, target);
 
-            Robot.Spindexer.clockwise(0.5);
+            Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
             Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
 
-            controller.ifPresent(
-                    c -> c.setRumble(RumbleType.kBothRumble, 0));
+        //     controller.ifPresent(
+        //             c -> c.setRumble(RumbleType.kBothRumble, 0));
 
         }, Robot.Shooter, Robot.Spindexer)
 
@@ -178,8 +180,8 @@ public class GameCommands {
             Robot.Shooter.stop();
             Robot.Spindexer.stop();
 
-            controller.ifPresent(
-                    c -> c.setRumble(RumbleType.kBothRumble, 0));
+        //     controller.ifPresent(
+                //     c -> c.setRumble(RumbleType.kBothRumble, 0));
         })
         .withName("ShootWithoutAngleCheck-" + target);
     }
@@ -190,7 +192,7 @@ public class GameCommands {
 
         return Commands.run(() -> {
 
-            Robot.Spindexer.clockwise(0.5);
+            Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
             Robot.Shooter.setVelocity(rps);
 
         }, Robot.Shooter, Robot.Spindexer)
@@ -200,8 +202,8 @@ public class GameCommands {
             Robot.Shooter.stop();
             Robot.Spindexer.stop();
 
-            controller.ifPresent(
-                    c -> c.setRumble(RumbleType.kBothRumble, 0));
+        //     controller.ifPresent(
+                //     c -> c.setRumble(RumbleType.kBothRumble, 0));
         });
     }
 
@@ -263,7 +265,7 @@ public class GameCommands {
 
                                     if (solution.isValid) {
 
-                                        Robot.Spindexer.clockwise(0.5);
+                                        Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
                                         Robot.Shooter.setVelocity(
                                                 solution.shooterSpeedRPS);
                                     }

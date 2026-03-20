@@ -17,7 +17,7 @@ public class Limelight {
 
     protected static final Map<String, Limelight> REGISTERED_LIMELIGHTS = new HashMap<>();
 
-    private static final int SAMPLE_SIZE = 12;
+    private static final int SAMPLE_SIZE = 20;
     private static final double DISPLACEMENT_ERROR_MARGIN = 0.6096;
     private static final double MAX_ROBOT_SPEED = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
     private static final double SPEED_MARGIN_MULTIPLIER = 1;

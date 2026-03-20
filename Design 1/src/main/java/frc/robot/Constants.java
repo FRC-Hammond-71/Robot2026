@@ -55,11 +55,11 @@ public class Constants {
 
         // Motor and control constants
         public static final double kGearRatio = (48.0 / 14.0) * (120.0 / 35.0); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
-        public static final double kKP = 25; // Proportional gain (dimensionless)
-        public static final double kKI = 0.2; // Integral gain (dimensionless)
-        public static final double kKD = 0.8; // Derivative gain (dimensionless)
-        public static final double kKS = 1; // Static friction feedforward (volts)
-        public static final double kKV = 2; // Velocity feedforward (volt-seconds per radian)
+        public static final double kKP = 150; // Proportional gain (dimensionless)
+        public static final double kKI = 15; // Integral gain (dimensionless)
+        public static final double kKD = 5; // Derivative gain (dimensionless)
+        public static final double kKS = 0.5; // Static friction feedforward (volts)
+        public static final double kKV = 0; // Velocity feedforward (volt-seconds per radian)
         public static final double kKA = 0; // Acceleration feedforward (volt-seconds² per radian)
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
         public static final double kMaxVelocity = 4; // Maximum velocity (rad/s)
@@ -70,6 +70,11 @@ public class Constants {
         public static final double kStatorCurrentLimit = 40; // Stator current limit (amperes)
         public static final boolean kEnableSupplyLimit = false; // Supply current limit enabled (boolean)
         public static final double kSupplyCurrentLimit = 40; // Supply current limit (amperes)
+    }
+
+
+    public static final class Spindexer {
+        public static final double kIndexingSpeed = 0.8;
     }
 
     public static final class Shooter {
@@ -104,9 +109,9 @@ public class Constants {
 
         public static final double kStatorCurrentLimit = 35.0;
         public static final int kExtensionCurrentLimit = 35;       // SparkMax smart current limit (amps)
-        public static final double kExtensionStallThreshold = 30;  // stall detection threshold (amps) — must be below kExtensionCurrentLimit
-        public static final double kExtensionStallDurationSeconds = 0.25; // sustain overcurrent this long before stopping
-        public static final double kHoldSpeed = 0.75; // duty cycle to hold game pieces while extended
+        public static final double kExtensionStallThreshold = 20;  // stall detection threshold (amps) — must be below kExtensionCurrentLimit
+        public static final double kExtensionStallDurationSeconds = 0.10; // sustain overcurrent this long before stopping
+        public static final double kHoldSpeed = 1; // duty cycle to hold game pieces while extended
         public static final int kMaxGamePieces = 30; // max fuel held at once in sim
     }
 

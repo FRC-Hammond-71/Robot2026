@@ -272,7 +272,8 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 
 		motor.setControl(
 			positionRequest.withPosition(positionRotations)
-					.withFeedForward(feedForwardVolts));
+					// .withFeedForward(feedForwardVolts)
+					);
 	}
 
 	public Command setRobotRelativeAngleCommand(double angleDegrees) {
@@ -346,14 +347,14 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 				setRobotRelativeAngle(solution.robotRelativeAngleDegrees, ffVolts);
 				
 			} else if (controller.isPresent()) {
-				controller.get().setRumble(RumbleType.kBothRumble, 1);
+				// controller.get().setRumble(RumbleType.kBothRumble, 1);
 			}
 
 			SmartDashboard.putBoolean("Turret/AutoAim/IsValid", solution.isValid);
 
 		}).finallyDo(() -> {
 
-			controller.ifPresent(c -> c.setRumble(RumbleType.kBothRumble, 0));
+			// controller.ifPresent(c -> c.setRumble(RumbleType.kBothRumble, 0));
 
 		}).withName("AutoAim-" + target.toString());
 	}
