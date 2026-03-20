@@ -108,11 +108,19 @@ public class TurretUtil {
     /**
      * Horizontal distance in meters from the turret to the target.
      */
-    public static double getDistance(Pose2d robotPose, TargetType target) {
+    public static double getTurretCenterDistance(Pose2d robotPose, TargetType target) {
         Translation2d turret = getTurretPose(robotPose).getTranslation();
         Translation2d goal = getTargetPose(target).getTranslation();
         return turret.getDistance(goal);
     }
+
+    /**
+     * Horizontal distance in meters from the robot center to the target.
+     */
+    public static double getRobotCenterDistance(Pose2d robotPose, TargetType target) {
+        return robotPose.getTranslation().getDistance(getTargetPose(target).getTranslation());
+    }
+
 
     /**
      * Field-relative angle (radians) from the turret to the target.
@@ -167,7 +175,8 @@ public class TurretUtil {
      * @return A {@link ShotSolution} with all parameters and a validity flag
      */
     public static ShotSolution computeShotSolution(Pose2d robotPose, TargetType target) {
-        double dist = getDistance(robotPose, target);
+        // NOTE: Use getTurretCenterDistance or getRobotCenterDistance here depending on whether the lookup tables are based on turret-to-target or robot-to-target distance
+        double dist = getTurretCenterDistance(robotPose, target);
         double robotRelativeAngle = getRobotRelativeAngleDegrees(robotPose, target);
 
         var params = getTableParams(dist, target);
