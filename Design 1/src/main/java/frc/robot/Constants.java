@@ -55,12 +55,12 @@ public class Constants {
 
         // Motor and control constants
         public static final double kGearRatio = (48.0 / 14.0) * (120.0 / 35.0); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
-        public static final double kKP = 150; // Proportional gain (dimensionless)
-        public static final double kKI = 15; // Integral gain (dimensionless)
-        public static final double kKD = 5; // Derivative gain (dimensionless)
-        public static final double kKS = 0.5; // Static friction feedforward (volts)
+        public static final double kKP = 90; // Proportional gain (dimensionless)
+        public static final double kKI = 20; // Integral gain (dimensionless)
+        public static final double kKD = 2; // Derivative gain (dimensionless)
+        public static final double kKS = 0.1; // Static friction feedforward (volts)
         public static final double kKV = 0; // Velocity feedforward (volt-seconds per radian)
-        public static final double kKA = 0; // Acceleration feedforward (volt-seconds² per radian)
+        public static final double kKA = 0.01; // Acceleration feedforward (volt-seconds² per radian)
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
         public static final double kMaxVelocity = 4; // Maximum velocity (rad/s)
         public static final double kMaxAcceleration = 4; // Maximum acceleration (rad/s²)
