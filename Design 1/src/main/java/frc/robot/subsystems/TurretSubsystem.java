@@ -83,6 +83,7 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 	private final ArmFeedforward feedforward = new ArmFeedforward(kS, 0, kV, kA);
 
 	private double targetRobotRelativeDegrees = Constants.Turret.kOriginAngle.in(Degrees);
+	private double operatorOffsetDegrees = 0.0;
 
 	private SingleJointedArmSim pivotSim;
 
@@ -250,6 +251,14 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 		return targetRobotRelativeDegrees;
 	}
 
+	public double getOperatorOffsetDegrees() {
+		return operatorOffsetDegrees;
+	}
+
+	public void adjustOperatorOffsetDegrees(double deltaDegrees) {
+		operatorOffsetDegrees += deltaDegrees;
+	}
+
 	public double getErrorDegrees() {
 		return targetRobotRelativeDegrees - getRobotRelativeAngleDegrees();
 	}
@@ -262,6 +271,8 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 
 		if (!Constants.Turret.kTurretEnabled)
 			return;
+
+		angleDegrees += operatorOffsetDegrees;
 
 		angleDegrees = Math.max(Constants.Turret.kMinAngleDegrees,
 				Math.min(Constants.Turret.kMaxAngleDegrees, angleDegrees));
@@ -367,6 +378,7 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 	protected void periodicAny() {
 
 		SmartDashboard.putNumber("Turret/Error", getErrorDegrees());
+		SmartDashboard.putNumber("Turret/OperatorOffsetDegrees", operatorOffsetDegrees);
 
 	}
 }

@@ -145,6 +145,12 @@ public class RobotContainer {
 		Controllers.Joystick.pov(270).onTrue(Commands.runOnce(() ->
 				currentTurretTarget = TargetType.LEFT_PASS));
 
+		Controllers.Operator.pov(270).onTrue(Commands.runOnce(() ->
+				Robot.Turret.adjustOperatorOffsetDegrees(-0.1), Robot.Turret));
+
+		Controllers.Operator.pov(90).onTrue(Commands.runOnce(() ->
+				Robot.Turret.adjustOperatorOffsetDegrees(0.1), Robot.Turret));
+
 		final var idle = new SwerveRequest.Idle();
 
 		RobotModeTriggers.disabled()
