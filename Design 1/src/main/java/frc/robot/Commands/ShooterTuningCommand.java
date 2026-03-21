@@ -23,7 +23,9 @@ public class ShooterTuningCommand extends Command {
 
     private boolean spinning = false;
     private final Timer spinTimer = new Timer();
-    private static final double SPIN_DURATION_SECONDS = 2.0;
+    private final Timer delay = new Timer();
+    private static final double SPIN_DURATION_SECONDS = 3.0;
+    private static final double DELAY = 1.0;
 
     // Edge detection: only trigger on press→release (falling edge)
     private boolean prevNext = false;
@@ -59,7 +61,12 @@ public class ShooterTuningCommand extends Command {
         SmartDashboard.putBoolean("ShooterTuning/Spinning", spinning);
 
         if (spinning) {
+            if (delay.hasElapsed(DELAY)) {
+                spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
+            }
             if (spinTimer.hasElapsed(SPIN_DURATION_SECONDS)) {
+                delay.stop();
+                delay.reset();
                 spinning = false;
                 spinTimer.stop();
                 spinTimer.reset();
@@ -87,8 +94,8 @@ public class ShooterTuningCommand extends Command {
         if (shootReleased) {
             spinning = true;
             spinTimer.restart();
+            delay.restart();
 
-            spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
             shooter.setVelocity(current.in(RotationsPerSecond));
         } else if (nextReleased) {
             current = current.plus(interval);

@@ -55,16 +55,16 @@ public class HubLookUpTable {
         // addEntry(5.4864,  57.5, 42, 1.25);  // Max distance - lowest angle
 
         // NEW VALUES 3/19/2026
-        addEntry(2.5, 40.7, 42, 0);
-        addEntry(3, 42.5, 42, 0);
-        addEntry(3.3, 45, 42, 0);
-        addEntry(3.5, 45, 42, 0);
-        addEntry(3.75, 45, 42, 0);
-        addEntry(4, 47.5, 42, 0);
-        addEntry(4.25, 48.8, 42, 0);
-        addEntry(4.5, 49.8, 42, 0);
-        addEntry(4.75, 51.2, 42, 0);
-        addEntry(5, 52.6, 42, 0);
+        addEntry(2.75, 37, 42, 0);
+        addEntry(3, 37.8, 42, 0);
+        addEntry(3.2, 39, 42, 0);
+        addEntry(3.5, 40, 42, 0);
+        addEntry(3.8, 41.6, 42, 0);
+        addEntry(4, 42, 42, 0);
+        addEntry(4.25, 42, 42, 0);
+        addEntry(4.5, 45, 42, 0);
+        addEntry(4.75, 47, 42, 0);
+        addEntry(5, 49, 42, 0);
     }
     
     /** Add an entry to the lookup table */

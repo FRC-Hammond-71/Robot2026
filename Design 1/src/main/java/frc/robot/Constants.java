@@ -87,6 +87,7 @@ public class Constants {
         public static final double kWheelDiameterMeters = 0.1016; // MEASURE: roller contact diameter (m)
         public static final double kSlipFactor          = 0.90;   // TUNE: 0.85–0.95 typical, 1.0 = no slip
         public static final double kG                   = 9.81;
+        
     
         // PID / feedforward — tune on robot
         public static final double kP = 0.15;
