@@ -11,15 +11,41 @@
           }
         },
         {
-          "type": "path",
+          "type": "parallel",
           "data": {
-            "pathName": "LT-LG"
+            "commands": [
+              {
+                "type": "named",
+                "data": {
+                  "name": "ExtendIntakeCommand"
+                }
+              },
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "LT-LG"
+                }
+              }
+            ]
           }
         },
         {
-          "type": "path",
+          "type": "parallel",
           "data": {
-            "pathName": "LG-LShoot"
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "LG-LShoot"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "RetractIntakeCommand"
+                }
+              }
+            ]
           }
         },
         {

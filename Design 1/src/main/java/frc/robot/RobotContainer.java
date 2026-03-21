@@ -165,21 +165,21 @@ public class RobotContainer {
 						driverController));
 
 		RobotModeTriggers.teleop()
-				.and(Controllers.Joystick.a())
-				.and(Controllers.Joystick.leftBumper().negate())
+				.and(Controllers.Operator.a())
+				.and(Controllers.Operator.leftBumper().negate())
 				.whileTrue(gameCommands.aimAndShootCommand(TargetType.AllianceHUB, driverController));
 
 		RobotModeTriggers.teleop()
-				.and(Controllers.Joystick.b())
+				.and(Controllers.Operator.b())
 				.whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(45, driverController));
 
 		// RobotModeTriggers.teleop().and(operator.y()).onTrue(spindexer.counterClockwiseCommand(0.8));
 
 		RobotModeTriggers.teleop()
-				.and(Controllers.Joystick.x())
+				.and(Controllers.Operator.x())
 				.whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(70, driverController));
 
-		RobotModeTriggers.teleop().and(Controllers.Joystick.y()).onTrue(Robot.Spindexer.counterClockwiseCommand(Constants.Spindexer.kIndexingSpeed));
+		RobotModeTriggers.teleop().and(Controllers.Operator.y()).onTrue(Robot.Spindexer.counterClockwiseCommand(Constants.Spindexer.kIndexingSpeed));
 
 		RobotModeTriggers.teleop()
 				.and(Controllers.Joystick.leftBumper())
@@ -188,10 +188,10 @@ public class RobotContainer {
 		Controllers.Joystick.start().onTrue(Robot.Drivetrain.runOnce(() ->
 				Robot.Drivetrain.seedFieldCentric()));
 
-		Controllers.Joystick.rightBumper().onTrue(Robot.Intake.toggleExtensionCommand());
+		Controllers.Operator.rightBumper().onTrue(Robot.Intake.toggleExtensionCommand());
 
 		// Auto-retract intake during boost, re-extend on release
-		new Trigger(() -> Controllers.Joystick.getLeftTriggerAxis() > 0.2)
+		new Trigger(() -> Controllers.Operator.getLeftTriggerAxis() > 0.2)
 				.and(() -> Robot.Intake.isExtended)
 				.onTrue(Robot.Intake.toggleExtensionCommand())
 				.onFalse(Robot.Intake.toggleExtensionCommand());

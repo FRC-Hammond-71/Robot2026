@@ -258,9 +258,8 @@ public class GameCommands {
                                     var pose = Robot.Drivetrain.getState().Pose;
 
                                     TurretUtil.ShotSolution solution =
-                                            TurretUtil.computeLeadingShot(
+                                            TurretUtil.computeShotSolution(
                                                     pose,
-                                                    Robot.Drivetrain.getState().Speeds,
                                                     TurretUtil.TargetType.AllianceHUB);
 
                                     if (solution.isValid) {

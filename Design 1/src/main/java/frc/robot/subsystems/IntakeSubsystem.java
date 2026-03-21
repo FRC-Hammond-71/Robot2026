@@ -100,21 +100,20 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
         SmartDashboard.putBoolean("Intake/Extension/IsMoving", isExtensionMoving);
             // SmartDashboard.putNumber("Intake/GamePiecesHeld", simManager.getGamePiecesHeld());
 
-        // Stop the extension motor when it reaches physical limit:
-        // - Real: current spike detection (stall)
-        // - Sim: time-based (1 second)
         if (isExtensionMoving) {
-            boolean done = RobotBase.isSimulation()
-                    ? (Timer.getFPGATimestamp() - extensionMoveStartTime >= 1.0)
-                    : extensionCurrentDetection.isOvercurrent(extensionCurrent);
+            boolean timedOut = Timer.getFPGATimestamp() - extensionMoveStartTime >= 1.5;
+            boolean done = timedOut || (!RobotBase.isSimulation() && extensionCurrentDetection.isOvercurrent(extensionCurrent));
             if (done) {
-                stopExtension();
+                m_extensionMotor.set(0);
                 isExtensionMoving = false;
+            } else {
+                // Continuously drive — SparkMax motor safety requires periodic updates
+                m_extensionMotor.set(isExtended ? 0.35 : -0.35);
             }
         }
 
-        // Run intake while retracting (full speed) or while extended (hold speed)
-        if (!isExtended && isExtensionMoving) {
+        // Intake motor: run while extending/extended, run full while retracting
+        if (isExtensionMoving && !isExtended) {
             intake(1.0);
         } else if (isExtended) {
             intake(Constants.Intake.kHoldSpeed);
@@ -150,15 +149,10 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
         isExtensionMoving = true;
         extensionCurrentDetection.reset();
         extensionMoveStartTime = Timer.getFPGATimestamp();
-        if (isExtended) {
-            extend(0.35);
-        } else {
-            retract(0.35);
-        }
     }
 
     public Command toggleExtensionCommand() {
-        return runOnce(this::toggleExtension).withName("ToggleExtension");
+        return Commands.runOnce(this::toggleExtension).withName("ToggleExtension");
     }
 
     public void extend(double speed) {
@@ -167,7 +161,6 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
 
     public void retract(double speed) {
         m_extensionMotor.set(-speed);
-        intake(1.0);
     }
 
     public void stopExtension() {
