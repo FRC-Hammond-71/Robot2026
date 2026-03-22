@@ -19,6 +19,7 @@ import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -43,6 +44,7 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
 
     private final CurrentDetection extensionCurrentDetection = new CurrentDetection(
             Constants.Intake.kExtensionStallThreshold, Constants.Intake.kExtensionStallDurationSeconds);
+    private final SlewRateLimiter extensionLimiter = new SlewRateLimiter(1.0);
     public boolean isExtended = false; // true = currently in extended position
     private boolean isExtensionMoving = false; // true = motor actively running to extend/retract
     private double extensionMoveStartTime = 0; // FPGA timestamp when extension movement began
@@ -108,7 +110,8 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
                 isExtensionMoving = false;
             } else {
                 // Continuously drive — SparkMax motor safety requires periodic updates
-                m_extensionMotor.set(isExtended ? 0.35 : -0.35);
+                double target = isExtended ? 0.35 : -0.35;
+                m_extensionMotor.set(extensionLimiter.calculate(target));
             }
         }
 
@@ -148,6 +151,7 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
         isExtended = !isExtended;
         isExtensionMoving = true;
         extensionCurrentDetection.reset();
+        extensionLimiter.reset(0);
         extensionMoveStartTime = Timer.getFPGATimestamp();
     }
 

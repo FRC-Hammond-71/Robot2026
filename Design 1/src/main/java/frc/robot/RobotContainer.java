@@ -2,7 +2,6 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 
-import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 
@@ -27,7 +26,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import edu.wpi.first.wpilibj2.command.*;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 import frc.robot.generated.FieldConstants;
 import frc.robot.generated.TunerConstants;
@@ -95,9 +93,6 @@ public class RobotContainer {
 
 		NamedCommands.registerCommand("ExtendIntakeCommand", Robot.Intake.extendCommand(0.5));
 		NamedCommands.registerCommand("RetractIntakeCommand", Robot.Intake.retractCommand(0.5));
-
-		NamedCommands.registerCommand("ShakeExtensionCommand",
-				new ShakeExtensionCommand(Robot.Intake, 0.5, Duration.ofSeconds(1)));
 
 		NamedCommands.registerCommand("Shoot", new ShootFuelCommand(Robot.Shooter, Robot.Drivetrain));
 
@@ -189,12 +184,6 @@ public class RobotContainer {
 				Robot.Drivetrain.seedFieldCentric()));
 
 		Controllers.Operator.rightBumper().onTrue(Robot.Intake.toggleExtensionCommand());
-
-		// Auto-retract intake during boost, re-extend on release
-		new Trigger(() -> Controllers.Operator.getLeftTriggerAxis() > 0.2)
-				.and(() -> Robot.Intake.isExtended)
-				.onTrue(Robot.Intake.toggleExtensionCommand())
-				.onFalse(Robot.Intake.toggleExtensionCommand());
 
 		configureTestBindingsForShooterTuning();
 		// configureTestBindingsForManualShootingAndTurret();

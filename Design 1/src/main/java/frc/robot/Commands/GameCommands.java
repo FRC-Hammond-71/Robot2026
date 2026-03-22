@@ -1,6 +1,5 @@
 package frc.robot.Commands;
 
-import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -112,11 +111,6 @@ public class GameCommands {
                         .andThen(
 
                                 Commands.parallel(
-
-                                        // new ShakeExtensionCommand(
-                                        //         Robot.Intake,
-                                        //         0.5,
-                                        //         Duration.ofSeconds(2)),
 
                                         Commands.run(() -> {
 
