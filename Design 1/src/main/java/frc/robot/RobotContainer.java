@@ -50,6 +50,11 @@ public class RobotContainer {
 			.withRotationalDeadband(Constants.Drivetrain.kCruiseAngularRate.in(RadiansPerSecond) * 0.1)
 			.withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
+	private final SwerveRequest.FieldCentricFacingAngle driveHeadingKeep =
+			new SwerveRequest.FieldCentricFacingAngle()
+					.withDeadband(Constants.Drivetrain.kCruiseSpeed * 0.1)
+					.withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+
 	private final Telemetry logger = new Telemetry(Constants.Drivetrain.kCruiseSpeed);
 
 	private final SendableChooser<Command> autoChooser;
@@ -63,12 +68,17 @@ public class RobotContainer {
 	private SlewRateLimiter yLimiter = new SlewRateLimiter(Constants.Drivetrain.kCruiseSpeed * 4);
 
 	private TargetType currentTurretTarget = TargetType.AllianceHUB;
+	private Rotation2d headingKeepTarget = null;
+	private boolean wasRotating = false;
 
 	public RobotContainer(Robot robot) {
 
 		this.Robot = robot;
 
 		gameCommands = new GameCommands(Robot);
+
+		driveHeadingKeep.HeadingController.setPID(2, 0, 0.1);
+		driveHeadingKeep.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
 		gameCommands.registerNamedCommands();
 		registerNamedCommands();
@@ -84,7 +94,10 @@ public class RobotContainer {
 		startingPoseChooser.addOption("Left", kLeftStart);
 		startingPoseChooser.addOption("Right", kRightStart);
 
-		startingPoseChooser.onChange(pose -> Robot.Drivetrain.resetPose(getStartingPose()));
+		startingPoseChooser.onChange(pose -> {
+			Robot.Drivetrain.resetPose(getStartingPose());
+			headingKeepTarget = null;
+		});
 
 		SmartDashboard.putData("Starting Position", startingPoseChooser);
 	}
@@ -123,11 +136,33 @@ public class RobotContainer {
 
 				double rotInput = MathUtil.applyDeadband(-Controllers.Joystick.getRightX(), 0.1);
 
-				return drive
-						.withVelocityX(xLimiter.calculate(-Controllers.Joystick.getLeftY() * currentSpeed))
-						.withVelocityY(yLimiter.calculate(-Controllers.Joystick.getLeftX() * currentSpeed))
-						.withRotationalRate(rotInput *
-								Constants.Drivetrain.kCruiseAngularRate.in(RadiansPerSecond) * speedScale);
+				double velX = xLimiter.calculate(-Controllers.Joystick.getLeftY() * currentSpeed);
+				double velY = yLimiter.calculate(-Controllers.Joystick.getLeftX() * currentSpeed);
+
+				boolean isRotating = rotInput != 0;
+
+				if (isRotating) {
+					wasRotating = true;
+					return drive
+							.withVelocityX(velX)
+							.withVelocityY(velY)
+							.withRotationalRate(rotInput *
+									Constants.Drivetrain.kCruiseAngularRate.in(RadiansPerSecond) * speedScale);
+				} else {
+					if (wasRotating || headingKeepTarget == null) {
+						// Transition from rotating to not rotating — capture heading with latency compensation
+						double yawLatencySeconds = Robot.Drivetrain.getPigeon2().getYaw().getTimestamp().getLatency();
+						double angularVelocityDegPerSec = Robot.Drivetrain.getPigeon2().getAngularVelocityZWorld().getValueAsDouble();
+						Rotation2d currentYaw = Robot.Drivetrain.getState().Pose.getRotation();
+						headingKeepTarget = currentYaw.plus(Rotation2d.fromDegrees(angularVelocityDegPerSec * yawLatencySeconds));
+						wasRotating = false;
+					}
+					// Hold the captured heading
+					return driveHeadingKeep
+							.withVelocityX(velX)
+							.withVelocityY(velY)
+							.withTargetDirection(headingKeepTarget);
+				}
 
 			}));
 
@@ -180,8 +215,10 @@ public class RobotContainer {
 				.and(Controllers.Joystick.leftBumper())
 				.whileTrue(Robot.Turret.neutralOutputCommand());
 
-		Controllers.Joystick.start().onTrue(Robot.Drivetrain.runOnce(() ->
-				Robot.Drivetrain.seedFieldCentric()));
+		Controllers.Joystick.start().onTrue(Robot.Drivetrain.runOnce(() -> {
+				Robot.Drivetrain.seedFieldCentric();
+				headingKeepTarget = null;
+		}));
 
 		Controllers.Operator.rightBumper().onTrue(Robot.Intake.toggleExtensionCommand());
 
