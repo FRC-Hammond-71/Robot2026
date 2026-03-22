@@ -84,6 +84,7 @@ public class RobotContainer {
 		registerNamedCommands();
 
 		autoChooser = AutoBuilder.buildAutoChooser();
+		autoChooser.addOption("Wheel Radius Calibration", buildWheelRadiusCalibrationCommand());
 		SmartDashboard.putData("Auto Mode", autoChooser);
 
 		autoChooser.onChange((chosenCmd) -> { Robot.selectedAutoCommand = chosenCmd; });
@@ -329,6 +330,39 @@ public class RobotContainer {
 		}
 
 		return pose;
+	}
+
+	private Command buildWheelRadiusCalibrationCommand() {
+		final double targetDistance = 2.0; // meters
+		final double calibrationSpeed = 0.5; // m/s — slow to minimize slip
+
+		SwerveRequest.RobotCentric forward = new SwerveRequest.RobotCentric()
+				.withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+
+		return Commands.sequence(
+			Commands.runOnce(() -> {
+				Robot.Drivetrain.resetPose(new Pose2d());
+				SmartDashboard.putString("WheelCalibration/Status", "Driving 2m Forward");
+				SmartDashboard.putNumber("WheelCalibration/ReportedDistance", 0);
+			}),
+			Robot.Drivetrain.applyRequest(() -> forward.withVelocityX(calibrationSpeed))
+				.until(() -> {
+					Pose2d pose = Robot.Drivetrain.getState().Pose;
+					double distance = pose.getTranslation().getNorm();
+					SmartDashboard.putNumber("WheelCalibration/ReportedDistance", distance);
+					return distance >= targetDistance;
+				}),
+			Robot.Drivetrain.applyRequest(() -> new SwerveRequest.Idle()).withTimeout(0.5),
+			Commands.runOnce(() -> {
+				double reported = Robot.Drivetrain.getState().Pose.getTranslation().getNorm();
+				SmartDashboard.putNumber("WheelCalibration/ReportedDistance", reported);
+				// double currentRadiusInches = 1.985; // must match TunerConstants.kWheelRadius
+				double currentRadiusInches = TunerConstants.kWheelRadius.in(Inches);
+				SmartDashboard.putString("WheelCalibration/Status",
+					String.format("Reported: %.4fm. Measure actual distance, then: effectiveRadius = %.4f in * (actual / %.4f)",
+						reported, currentRadiusInches, reported));
+			})
+		).withName("Wheel Radius Calibration");
 	}
 
 	public Command getAutonomousCommand() {
