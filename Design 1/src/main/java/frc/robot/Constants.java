@@ -110,8 +110,8 @@ public class Constants {
 
         public static final double kStatorCurrentLimit = 35.0;
         public static final int kExtensionCurrentLimit = 35;       // SparkMax smart current limit (amps)
-        public static final double kExtensionStallThreshold = 20;  // stall detection threshold (amps) — must be below kExtensionCurrentLimit
-        public static final double kExtensionStallDurationSeconds = 0.10; // sustain overcurrent this long before stopping
+        public static final double kExtensionStallThreshold = 30;  // stall detection threshold (amps) — must be below kExtensionCurrentLimit
+        public static final double kExtensionStallDurationSeconds = 0.25; // sustain overcurrent this long before stopping
         public static final double kHoldSpeed = 1; // duty cycle to hold game pieces while extended
         public static final int kMaxGamePieces = 30; // max fuel held at once in sim
     }
