@@ -179,11 +179,25 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
     }
 
     public Command extendCommand(double speed) {
-        return Commands.runEnd(() -> extend(speed), this::stopExtension, this).withName("Intake Extend");
+        return Commands.runEnd(() -> {
+            isExtensionMoving = false;
+            isExtended = true;
+            extend(speed);
+        }, () -> {
+            stopExtension();
+            isExtended = true;
+        }, this).withName("Intake Extend");
     }
 
     public Command retractCommand(double speed) {
-        return Commands.runEnd(() -> retract(speed), this::stopExtension, this).withName("Intake Retract");
+        return Commands.runEnd(() -> {
+            isExtensionMoving = false;
+            isExtended = false;
+            retract(speed);
+        }, () -> {
+            stopExtension();
+            isExtended = false;
+        }, this).withName("Intake Retract");
     }
 
     @Override
