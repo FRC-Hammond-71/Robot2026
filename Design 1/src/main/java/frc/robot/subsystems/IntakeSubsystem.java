@@ -179,25 +179,25 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
     }
 
     public Command extendCommand(double speed) {
-        return Commands.runEnd(() -> {
-            isExtensionMoving = false;
+        return Commands.runOnce(() -> {
             isExtended = true;
-            extend(speed);
-        }, () -> {
-            stopExtension();
-            isExtended = true;
-        }, this).withName("Intake Extend");
+            isExtensionMoving = true;
+            extensionCurrentDetection.reset();
+            extensionLimiter.reset(0);
+            extensionMoveStartTime = Timer.getFPGATimestamp();
+        }).andThen(Commands.waitUntil(() -> !isExtensionMoving))
+          .withName("Intake Extend");
     }
 
     public Command retractCommand(double speed) {
-        return Commands.runEnd(() -> {
-            isExtensionMoving = false;
+        return Commands.runOnce(() -> {
             isExtended = false;
-            retract(speed);
-        }, () -> {
-            stopExtension();
-            isExtended = false;
-        }, this).withName("Intake Retract");
+            isExtensionMoving = true;
+            extensionCurrentDetection.reset();
+            extensionLimiter.reset(0);
+            extensionMoveStartTime = Timer.getFPGATimestamp();
+        }).andThen(Commands.waitUntil(() -> !isExtensionMoving))
+          .withName("Intake Retract");
     }
 
     @Override
