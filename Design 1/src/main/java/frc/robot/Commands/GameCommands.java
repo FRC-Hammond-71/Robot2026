@@ -40,6 +40,16 @@ public class GameCommands {
         rotateInPlaceRequest.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
     }
 
+    /** Spins up the shooter and only feeds the spindexer once at speed. */
+    private void spinUpAndFeed(double rps) {
+        Robot.Shooter.setVelocity(rps);
+        if (Robot.Shooter.isAtSpeed(rps)) {
+            Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
+        } else {
+            Robot.Spindexer.stop();
+        }
+    }
+
     public void registerNamedCommands() {
 
         NamedCommands.registerCommand(
@@ -122,13 +132,14 @@ public class GameCommands {
 
                                             if (solution.isValid) {
 
-                                                Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
-                                                Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
+                                                spinUpAndFeed(solution.shooterSpeedRPS);
 
                                                 // controller.ifPresent(c -> c.setRumble(RumbleType.kBothRumble, 0));
 
                                             } else {
 
+                                                Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
+                                                Robot.Spindexer.stop();
                                                 // controller.ifPresent( c -> c.setRumble(RumbleType.kBothRumble, 1));
                                             }
 
@@ -161,8 +172,7 @@ public class GameCommands {
             TurretUtil.ShotSolution solution =
                     TurretUtil.computeShotSolution(pose, target);
 
-            Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
-            Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
+            spinUpAndFeed(solution.shooterSpeedRPS);
 
         //     controller.ifPresent(
         //             c -> c.setRumble(RumbleType.kBothRumble, 0));
@@ -186,8 +196,7 @@ public class GameCommands {
 
         return Commands.run(() -> {
 
-            Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
-            Robot.Shooter.setVelocity(rps);
+            spinUpAndFeed(rps);
 
         }, Robot.Shooter, Robot.Spindexer)
 
@@ -258,9 +267,10 @@ public class GameCommands {
 
                                     if (solution.isValid) {
 
-                                        Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
-                                        Robot.Shooter.setVelocity(
-                                                solution.shooterSpeedRPS);
+                                        spinUpAndFeed(solution.shooterSpeedRPS);
+                                    } else {
+
+                                        Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
                                     }
 
                                 }, Robot.Shooter, Robot.Spindexer)
