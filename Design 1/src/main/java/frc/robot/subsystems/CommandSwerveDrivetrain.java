@@ -298,7 +298,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             // start simulation thread; VisionSubsystem will be injected by Robot
             startSimThread();
         }
-
+        configureAutoBuilder();
     }
 
     /**
