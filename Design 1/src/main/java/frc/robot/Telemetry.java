@@ -151,9 +151,9 @@ public class Telemetry {
         driveOdometryFrequency.set(1.0 / state.OdometryPeriod);
 
         // Pose Predictions
-        predictedRobotPoses500ms.set(PosePrediction.Linear(state.Pose, state.Speeds, 0.5));
-        predictedRobotPoses1s.set(PosePrediction.Linear(state.Pose, state.Speeds, 1));
-        predictedRobotPoses2s.set(PosePrediction.Linear(state.Pose, state.Speeds, 2));
+        predictedRobotPoses500ms.set(PosePrediction.Exponential(state.Pose, state.Speeds, 0.5));
+        predictedRobotPoses1s.set(PosePrediction.Exponential(state.Pose, state.Speeds, 1));
+        predictedRobotPoses2s.set(PosePrediction.Exponential(state.Pose, state.Speeds, 2));
 
         // predictedRobotPoses1s.set(null);
 
@@ -167,7 +167,7 @@ public class Telemetry {
             shotValid.set(m_latestShot.isValid);
 
             // Publish predicted robot pose at TOF
-            Pose2d predictedAtShot = PosePrediction.Linear(state.Pose, state.Speeds, m_latestShot.timeOfFlightSeconds);
+            Pose2d predictedAtShot = PosePrediction.Exponential(state.Pose, state.Speeds, m_latestShot.timeOfFlightSeconds);
             shotPredictedRobotPose.set(predictedAtShot);
 
             // Publish intercept point as a Pose2d (heading = turret aim direction) for Field2d visualization

@@ -48,12 +48,12 @@ public class RobotContainer {
 	private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
 			.withDeadband(Constants.Drivetrain.kCruiseSpeed * 0.1)
 			.withRotationalDeadband(Constants.Drivetrain.kCruiseAngularRate.in(RadiansPerSecond) * 0.1)
-			.withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+			.withDriveRequestType(DriveRequestType.Velocity);
 
 	private final SwerveRequest.FieldCentricFacingAngle driveHeadingKeep =
 			new SwerveRequest.FieldCentricFacingAngle()
 					.withDeadband(Constants.Drivetrain.kCruiseSpeed * 0.1)
-					.withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+					.withDriveRequestType(DriveRequestType.Velocity);
 
 	private final Telemetry logger = new Telemetry(Constants.Drivetrain.kCruiseSpeed);
 
@@ -84,7 +84,7 @@ public class RobotContainer {
 		registerNamedCommands();
 
 		autoChooser = AutoBuilder.buildAutoChooser();
-		autoChooser.addOption("Wheel Radius Calibration", buildWheelRadiusCalibrationCommand());
+		autoChooser.addOption("Wheel Radius Characterization", buildWheelRadiusCalibrationCommand());
 		SmartDashboard.putData("Auto Mode", autoChooser);
 
 		autoChooser.onChange((chosenCmd) -> { Robot.selectedAutoCommand = chosenCmd; });
@@ -333,36 +333,100 @@ public class RobotContainer {
 	}
 
 	private Command buildWheelRadiusCalibrationCommand() {
-		final double targetDistance = 2.0; // meters
-		final double calibrationSpeed = 0.5; // m/s — slow to minimize slip
+		// driveBaseRadius = distance from robot center to any module
+		// Module positions are at (±10.375", ±10.375") from center
+		final double driveBaseRadiusMeters = Units.inchesToMeters(
+				Math.hypot(10.375, 10.375));
+		final double maxAngularVelocity = 0.25; // rad/s — slow spin
+		final double rampRate = 0.05; // rad/s² — smooth acceleration
 
-		SwerveRequest.RobotCentric forward = new SwerveRequest.RobotCentric()
-				.withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+		final SlewRateLimiter limiter = new SlewRateLimiter(rampRate);
+		final double driveGearRatio = 8.142857142857142; // MK4i L1
 
-		return Commands.sequence(
-			Commands.runOnce(() -> {
-				Robot.Drivetrain.resetPose(new Pose2d());
-				SmartDashboard.putString("WheelCalibration/Status", "Driving 2m Forward");
-				SmartDashboard.putNumber("WheelCalibration/ReportedDistance", 0);
-			}),
-			Robot.Drivetrain.applyRequest(() -> forward.withVelocityX(calibrationSpeed))
-				.until(() -> {
-					Pose2d pose = Robot.Drivetrain.getState().Pose;
-					double distance = pose.getTranslation().getNorm();
-					SmartDashboard.putNumber("WheelCalibration/ReportedDistance", distance);
-					return distance >= targetDistance;
+		SwerveRequest.RobotCentric spin = new SwerveRequest.RobotCentric()
+				.withDriveRequestType(DriveRequestType.Velocity);
+
+		// State variables captured by lambda
+		final double[] startPositions = new double[4];
+		final double[] lastYaw = {0};
+		final double[] gyroDelta = {0};
+
+		return Commands.parallel(
+			// Drive: ramp up angular velocity
+			Commands.sequence(
+				Commands.runOnce(() -> limiter.reset(0.0)),
+				Robot.Drivetrain.applyRequest(() ->
+					spin.withRotationalRate(limiter.calculate(maxAngularVelocity)))
+			),
+			// Measure: wait for modules to orient, then track gyro vs wheels
+			Commands.sequence(
+				Commands.waitSeconds(1.0), // let modules orient
+				Commands.runOnce(() -> {
+					// Record starting positions
+					for (int i = 0; i < 4; i++) {
+						startPositions[i] = Robot.Drivetrain.getModule(i)
+								.getDriveMotor().getPosition().getValueAsDouble()
+								* 2.0 * Math.PI / driveGearRatio; // motor rotations → wheel radians
+					}
+					lastYaw[0] = Robot.Drivetrain.getPigeon2().getYaw().getValueAsDouble();
+					gyroDelta[0] = 0.0;
+					SmartDashboard.putString("WheelRadiusCharacterization/Status", "Measuring...");
 				}),
-			Robot.Drivetrain.applyRequest(() -> new SwerveRequest.Idle()).withTimeout(0.5),
-			Commands.runOnce(() -> {
-				double reported = Robot.Drivetrain.getState().Pose.getTranslation().getNorm();
-				SmartDashboard.putNumber("WheelCalibration/ReportedDistance", reported);
-				// double currentRadiusInches = 1.985; // must match TunerConstants.kWheelRadius
-				double currentRadiusInches = TunerConstants.kWheelRadius.in(Inches);
-				SmartDashboard.putString("WheelCalibration/Status",
-					String.format("Reported: %.4fm. Measure actual distance, then: effectiveRadius = %.4f in * (actual / %.4f)",
-						reported, currentRadiusInches, reported));
-			})
-		).withName("Wheel Radius Calibration");
+				Commands.run(() -> {
+					// Accumulate absolute gyro rotation
+					double currentYaw = Robot.Drivetrain.getPigeon2().getYaw().getValueAsDouble();
+					double yawDeltaDeg = currentYaw - lastYaw[0];
+					// Handle wrap-around
+					if (yawDeltaDeg > 180) yawDeltaDeg -= 360;
+					if (yawDeltaDeg < -180) yawDeltaDeg += 360;
+					gyroDelta[0] += Math.abs(Math.toRadians(yawDeltaDeg));
+					lastYaw[0] = currentYaw;
+
+					// Calculate average wheel delta across all 4 modules
+					double wheelDelta = 0.0;
+					for (int i = 0; i < 4; i++) {
+						double currentPos = Robot.Drivetrain.getModule(i)
+								.getDriveMotor().getPosition().getValueAsDouble()
+								* 2.0 * Math.PI / driveGearRatio;
+						wheelDelta += Math.abs(currentPos - startPositions[i]) / 4.0;
+					}
+
+					// Calculate wheel radius
+					double wheelRadiusMeters = wheelDelta > 0.01
+							? (gyroDelta[0] * driveBaseRadiusMeters) / wheelDelta
+							: 0.0;
+					double wheelRadiusInches = Units.metersToInches(wheelRadiusMeters);
+
+					SmartDashboard.putNumber("WheelRadiusCharacterization/GyroDeltaRad", gyroDelta[0]);
+					SmartDashboard.putNumber("WheelRadiusCharacterization/WheelDeltaRad", wheelDelta);
+					SmartDashboard.putNumber("WheelRadiusCharacterization/WheelRadiusInches", wheelRadiusInches);
+					SmartDashboard.putNumber("WheelRadiusCharacterization/WheelRadiusMeters", wheelRadiusMeters);
+				})
+			)
+		).finallyDo(() -> {
+			double wheelDelta = 0.0;
+			for (int i = 0; i < 4; i++) {
+				double currentPos = Robot.Drivetrain.getModule(i)
+						.getDriveMotor().getPosition().getValueAsDouble()
+						* 2.0 * Math.PI / driveGearRatio;
+				wheelDelta += Math.abs(currentPos - startPositions[i]) / 4.0;
+			}
+			double wheelRadiusMeters = wheelDelta > 0.01
+					? (gyroDelta[0] * driveBaseRadiusMeters) / wheelDelta
+					: 0.0;
+			double wheelRadiusInches = Units.metersToInches(wheelRadiusMeters);
+
+			System.out.println("********** Wheel Radius Characterization Results **********");
+			System.out.printf("    Gyro Delta:   %.6f radians%n", gyroDelta[0]);
+			System.out.printf("    Wheel Delta:  %.6f radians%n", wheelDelta);
+			System.out.printf("    Wheel Radius: %.6f meters (%.5f inches)%n",
+					wheelRadiusMeters, wheelRadiusInches);
+			System.out.println("    Update TunerConstants.kWheelRadius = Inches.of(" +
+					String.format("%.5f", wheelRadiusInches) + ");");
+
+			SmartDashboard.putString("WheelRadiusCharacterization/Status",
+					String.format("DONE — Radius: %.5f inches. Update TunerConstants.", wheelRadiusInches));
+		}).withName("Wheel Radius Characterization");
 	}
 
 	public Command getAutonomousCommand() {

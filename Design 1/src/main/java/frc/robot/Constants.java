@@ -121,6 +121,18 @@ public class Constants {
         public static final AngularVelocity kCruiseAngularRate = RotationsPerSecond.of(0.5);
     }
 
+    public static final class Odometry {
+
+        public static final Matrix<N3, N1> kOdometryStdDevs = VecBuilder.fill(0.01, 0.01, 0.005);
+        public static final Matrix<N3, N1> kDefaultVisionStdDevs = VecBuilder.fill(0.5, 0.5, 1e9);
+
+        public static final double kBaseVisionStdDev = 0.3;
+        public static final double kDistanceScaleFactor = 0.15;
+        public static final double kSingleTagMultiplier = 2.5;
+        public static final double kMinVisionStdDev = 0.1;
+        public static final double kMaxVisionStdDev = 3.0;
+    }
+
     public static final class Simulation {
         public static final double kRobotMassKg = 50.0;        // ~110 lbs with bumpers
         public static final double kBumperLengthMeters = 0.762; // 30" frame

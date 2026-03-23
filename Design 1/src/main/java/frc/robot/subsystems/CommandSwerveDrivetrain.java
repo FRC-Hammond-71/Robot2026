@@ -45,6 +45,8 @@ import com.ctre.phoenix6.StatusSignal;
 import edu.wpi.first.units.measure.Angle;
 import frc.robot.generated.TunerConstants;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
+import frc.robot.odometry.OdometryDiagnostics;
+import frc.robot.odometry.TiltCompensatedOdometry;
  
 import frc.robot.utils.simulation.MapleSimSwerveDrivetrain;
 
@@ -70,6 +72,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         .getStructTopic("rPose", Pose2d.struct).publish();
 
     private BufferedStatusSignal<Angle> m_bufferedTurretAngle = null;
+    private final TiltCompensatedOdometry tiltCompensatedOdometry = new TiltCompensatedOdometry();
+    private final OdometryDiagnostics odometryDiagnostics = new OdometryDiagnostics();
 
     public BufferedStatusSignal<Angle> getBufferedTurretAngle() {
         return m_bufferedTurretAngle;
@@ -170,7 +174,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
             AutoBuilder.configure(
                     () -> getState().Pose, // Supplier of current robot pose
-                    (pose) -> {}, // Consumer for seeding pose against auto
+                    this::resetPose, // Seed odometry pose at auto start
                     () -> getState().Speeds, // Supplier of current robot speeds
                     // Consumer of ChassisSpeeds and feedforwards to drive the robot
                     (speeds, feedforwards) -> setControl(
@@ -179,10 +183,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                                     .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())
                                     ),
                     new PPHolonomicDriveController(
-                            // PID constants for translation
-                            new PIDConstants(5, 0, 0),
-                            // PID constants for rotation
-                            new PIDConstants(7, 0, 0)),
+                            new PIDConstants(5, 0, 0.1),  // translation
+                            new PIDConstants(7, 0, 0.2)), // rotation
                     config,
                     // Assume the path needs to be flipped for Red vs Blue, this is normally the
                     // case
@@ -316,6 +318,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             mapleSimSwerveDrivetrain.mapleSimDrive.setSimulationWorldPose(pose);
         Timer.delay(0.05); // Wait for simulation to update
         super.resetPose(pose);
+        tiltCompensatedOdometry.reset(pose);
     }
 
     /**
@@ -375,6 +378,36 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
         updateOdometry();
 
+        // Tilt compensation
+        double pitchDeg = getPigeon2().getPitch().getValueAsDouble();
+        double rollDeg = getPigeon2().getRoll().getValueAsDouble();
+        tiltCompensatedOdometry.update(getState().Pose, pitchDeg, rollDeg);
+        SmartDashboard.putNumber("Odometry/TiltFactor",
+            TiltCompensatedOdometry.tiltFactor(pitchDeg, rollDeg));
+
+        // Odometry diagnostics
+        odometryDiagnostics.publish(
+            tiltCompensatedOdometry.getCompensatedPose(),
+            getState().Pose, pitchDeg, rollDeg);
+
+        // Per-module telemetry
+        var state = getState();
+        for (int i = 0; i < 4; i++) {
+            String prefix = "Module/" + i + "/";
+            double steerAngleDeg = state.ModuleStates[i].angle.getDegrees();
+            double targetAngleDeg = state.ModuleTargets[i].angle.getDegrees();
+            double steerError = steerAngleDeg - targetAngleDeg;
+            steerError = ((steerError + 180) % 360 + 360) % 360 - 180;
+
+            SmartDashboard.putNumber(prefix + "SteerAngleDeg", steerAngleDeg);
+            SmartDashboard.putNumber(prefix + "TargetAngleDeg", targetAngleDeg);
+            SmartDashboard.putNumber(prefix + "SteerErrorDeg", steerError);
+            SmartDashboard.putNumber(prefix + "DrivePositionM", state.ModulePositions[i].distanceMeters);
+            SmartDashboard.putNumber(prefix + "DriveVelocityMPS", state.ModuleStates[i].speedMetersPerSecond);
+        }
+        SmartDashboard.putNumber("Pigeon/PitchDeg", getPigeon2().getPitch().getValueAsDouble());
+        SmartDashboard.putNumber("Pigeon/RollDeg", getPigeon2().getRoll().getValueAsDouble());
+
     }
 
     // https://github.com/Shenzhen-Robotics-Alliance/CTRE-Swerve-MapleSim/tree/main?tab=readme-ov-file#modify-the-drive-subsystem-code
@@ -407,6 +440,11 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     public SwerveDriveSimulation getMapleSimSwerveDrivetrain() {
         return mapleSimSwerveDrivetrain.mapleSimDrive;
+    }
+
+    /** Returns the tilt-compensated wheel-only pose (no vision fusion). */
+    public Pose2d getTiltCompensatedPose() {
+        return tiltCompensatedOdometry.getCompensatedPose();
     }
 
     /*
