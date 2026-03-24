@@ -132,12 +132,6 @@ public class Constants {
 
         public static final Matrix<N3, N1> kOdometryStdDevs = VecBuilder.fill(0.01, 0.01, 0.005);
         public static final Matrix<N3, N1> kDefaultVisionStdDevs = VecBuilder.fill(0.05, 0.05, 1e9);
-
-        public static final double kBaseVisionStdDev = 0.1;
-        public static final double kDistanceScaleFactor = 0.1;
-        public static final double kSingleTagMultiplier = 1.2;
-        public static final double kMinVisionStdDev = 0.03;
-        public static final double kMaxVisionStdDev = 3.0;
     }
 
     public static final class Simulation {

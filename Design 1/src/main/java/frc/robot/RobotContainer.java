@@ -86,9 +86,7 @@ public class RobotContainer {
 		startingPoseChooser.addOption("Left", kLeftStart);
 		startingPoseChooser.addOption("Right", kRightStart);
 
-		startingPoseChooser.onChange(pose -> {
-			Robot.Drivetrain.resetPose(getStartingPose());
-		});
+		startingPoseChooser.onChange(pose -> { Robot.Drivetrain.resetPose(getStartingPose()); });
 
 		SmartDashboard.putData("Starting Position", startingPoseChooser);
 
@@ -141,14 +139,14 @@ public class RobotContainer {
 
 			}));
 
-		Controllers.Joystick.pov(90).onTrue(Commands.runOnce(() ->
-				currentTurretTarget = TargetType.RIGHT_PASS));
+		// Controllers.Joystick.pov(90).onTrue(Commands.runOnce(() ->
+		// 		currentTurretTarget = TargetType.RIGHT_PASS));
 
-		Controllers.Joystick.pov(0).onTrue(Commands.runOnce(() ->
-				currentTurretTarget = TargetType.AllianceHUB));
+		// Controllers.Joystick.pov(0).onTrue(Commands.runOnce(() ->
+		// 		currentTurretTarget = TargetType.AllianceHUB));
 
-		Controllers.Joystick.pov(270).onTrue(Commands.runOnce(() ->
-				currentTurretTarget = TargetType.LEFT_PASS));
+		// Controllers.Joystick.pov(270).onTrue(Commands.runOnce(() ->
+		// 		currentTurretTarget = TargetType.LEFT_PASS));
 
 		Controllers.Operator.pov(270).onTrue(Commands.runOnce(() ->
 				Robot.Turret.adjustOperatorOffsetDegrees(-0.1), Robot.Turret));

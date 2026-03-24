@@ -7,19 +7,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "SR"
-          }
-        },
-        {
-          "type": "wait",
-          "data": {
-            "waitTime": 0.4
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "AutoShootAtHub"
+            "pathName": "Test"
           }
         }
       ]

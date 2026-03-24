@@ -3,354 +3,223 @@ package frc.robot.Commands;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
-import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.pathplanner.lib.auto.NamedCommands;
 
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 
 import edu.wpi.first.wpilibj.GenericHID;
-import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.Constants;
 import frc.robot.Robot;
-import frc.robot.generated.FieldConstants;
 import frc.robot.util.dashboard.TurretUtil;
 
 public class GameCommands {
 
-    private static final double kTurretRangeCenterDeg = 135.0;
-    private static final double kTurretAlignToleranceDeg = 2;
+	private static final double kTurretAlignToleranceDeg = 2;
 
-    private final Robot Robot;
+	private final Robot Robot;
 
-    private final SwerveRequest.FieldCentricFacingAngle rotateInPlaceRequest =
-            new SwerveRequest.FieldCentricFacingAngle()
-                    .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+	public GameCommands(Robot robot) {
 
-    public GameCommands(Robot robot) {
+		this.Robot = robot;
+	}
 
-        this.Robot = robot;
+	/** Spins up the shooter and only feeds the spindexer once at speed. */
+	private void spinUpAndFeed(double rps) {
+		Robot.Shooter.setVelocity(rps);
+		if (Robot.Shooter.isAtSpeed(rps)) {
+			Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
+		} else {
+			Robot.Spindexer.stop();
+		}
+	}
 
-        rotateInPlaceRequest.HeadingController.setPID(2, 0, 0.1);
-        rotateInPlaceRequest.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
-    }
+	public void registerNamedCommands() {
 
-    /** Spins up the shooter and only feeds the spindexer once at speed. */
-    private void spinUpAndFeed(double rps) {
-        Robot.Shooter.setVelocity(rps);
-        if (Robot.Shooter.isAtSpeed(rps)) {
-            Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
-        } else {
-            Robot.Spindexer.stop();
-        }
-    }
+		NamedCommands.registerCommand(
+				"ShootAtHub",
+				shootAtHubCommand(Optional.empty()));
+				
+		NamedCommands.registerCommand(
+				"PassLeft",
+				passLeftCommand(Optional.empty()));
 
-    public void registerNamedCommands() {
+		NamedCommands.registerCommand(
+				"PassRight",
+				passRightCommand(Optional.empty()));
 
-        NamedCommands.registerCommand(
-                "ShootAtHub",
-                shootAtHubCommand(Optional.empty()));
+		NamedCommands.registerCommand(
+				"PassClosest",
+				passClosestCommand(Optional.empty()));
+	}
 
-        NamedCommands.registerCommand(
-                "AutoShootAtHub",
-                autoShootAtHubCommand(Optional.empty()));
+	public Command aimAndShootCommand(
+			TurretUtil.TargetType target,
+			Optional<GenericHID> controller) {
 
-        NamedCommands.registerCommand(
-                "PassLeft",
-                passLeftCommand(Optional.empty()));
+		return Commands.parallel(
 
-        NamedCommands.registerCommand(
-                "PassRight",
-                passRightCommand(Optional.empty()));
+				Robot.Turret.autoAimCommand(
+						() -> Robot.Drivetrain.getState().Pose,
+						() -> target,
+						() -> Robot.Drivetrain.getState().Speeds,
+						() -> Units.degreesToRadians(
+								Robot.Drivetrain.getPigeon2()
+										.getAngularVelocityZWorld()
+										.getValueAsDouble()),
+						controller),
 
-        NamedCommands.registerCommand(
-                "PassClosest",
-                passClosestCommand(Optional.empty()));
-    }
+				Commands.run(() -> {
 
-    public Command rotateIntoRangeCommand(
-            TurretUtil.TargetType target,
-            Supplier<Translation2d> targetXY) {
+					var pose = Robot.Drivetrain.getState().Pose;
+					TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
 
-        return Robot.Drivetrain.applyRequest(() -> {
+					if (!solution.isValid) {
+						Robot.Shooter.stop();
+						Robot.Spindexer.stop();
+						return;
+					}
 
-            Translation2d tgt = targetXY.get();
-            Translation2d robot = Robot.Drivetrain.getState().Pose.getTranslation();
+					SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
 
-            double fieldAngleDeg = Math.toDegrees(
-                    Math.atan2(tgt.getY() - robot.getY(), tgt.getX() - robot.getX()));
+					Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
 
-            Rotation2d goalHeading =
-                    Rotation2d.fromDegrees(fieldAngleDeg - kTurretRangeCenterDeg);
+					boolean aligned = Math
+							.abs(Robot.Turret.getErrorDegrees()) < kTurretAlignToleranceDeg;
 
-            return rotateInPlaceRequest
-                    .withVelocityX(0)
-                    .withVelocityY(0)
-                    .withTargetDirection(goalHeading);
+					boolean atSpeed = Robot.Shooter.isAtSpeed(solution.shooterSpeedRPS);
 
-        }).until(() -> {
+					if (aligned && atSpeed) {
+						Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
+					} else {
+						Robot.Spindexer.stop();
+					}
 
-            var pose = Robot.Drivetrain.getState().Pose;
+				}, Robot.Shooter, Robot.Spindexer)
 
-            TurretUtil.ShotSolution solution =
-                    TurretUtil.computeShotSolution(pose, target);
+						.finallyDo(__ -> {
+							Robot.Shooter.stop();
+							Robot.Spindexer.stop();
+						}))
+				.withName("AimAndShoot-" + target);
+	}
 
-            return solution.isValid;
+	public Command shootWithoutAngleCheckCommand(
+			TurretUtil.TargetType target,
+			Optional<GenericHID> controller) {
 
-        }).withTimeout(4)
-                .withName("RotateIntoTurretRange-" + target);
-    }
+		return Commands.run(() -> {
 
-    public Command aimAndShootCommand(
-            TurretUtil.TargetType target,
-            Optional<GenericHID> controller) {
+			var pose = Robot.Drivetrain.getState().Pose;
 
-        return Commands.parallel(
+			TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
 
-                Robot.Turret.autoAimCommand(
-                        () -> Robot.Drivetrain.getState().Pose,
-                        () -> target,
-                        () -> Robot.Drivetrain.getState().Speeds,
-                        () -> Units.degreesToRadians(Robot.Drivetrain.getPigeon2().getAngularVelocityZWorld().getValueAsDouble()),
-                        controller),
+			spinUpAndFeed(solution.shooterSpeedRPS);
 
-                Commands.waitUntil(() ->
-                        Math.abs(Robot.Turret.getErrorDegrees()) < kTurretAlignToleranceDeg)
-                        .withTimeout(2.0)
+			// controller.ifPresent(
+			// c -> c.setRumble(RumbleType.kBothRumble, 0));
 
-                        .andThen(
+		}, Robot.Shooter, Robot.Spindexer)
 
-                                Commands.parallel(
+				.finallyDo(__ -> {
 
-                                        Commands.run(() -> {
+					Robot.Shooter.stop();
+					Robot.Spindexer.stop();
 
-                                            var pose = Robot.Drivetrain.getState().Pose;
+					// controller.ifPresent(
+					// c -> c.setRumble(RumbleType.kBothRumble, 0));
+				})
+				.withName("ShootWithoutAngleCheck-" + target);
+	}
 
-                                            TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
+	public Command shootAtSpeedWithoutAngleCheckCommand(
+			double rps,
+			Optional<GenericHID> controller) {
 
-                                            SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
+		return Commands.run(() -> {
 
-                                            spinUpAndFeed(solution.shooterSpeedRPS);
+			spinUpAndFeed(rps);
 
-                                        }, Robot.Shooter, Robot.Spindexer)
-                                )
-                        )
+		}, Robot.Shooter, Robot.Spindexer)
 
-                        .finallyDo(__ -> {
+				.finallyDo(__ -> {
 
-                            Robot.Shooter.stop();
-                            Robot.Spindexer.stop();
+					Robot.Shooter.stop();
+					Robot.Spindexer.stop();
 
-                        //     controller.ifPresent(
-                        //             c -> c.setRumble(
-                        //                     RumbleType.kBothRumble,
-                        //                     0));
-                        })
-        )
-        .withName("AimAndShoot-" + target);
-    }
+					// controller.ifPresent(
+					// c -> c.setRumble(RumbleType.kBothRumble, 0));
+				});
+	}
 
-    public Command shootWithoutAngleCheckCommand(
-            TurretUtil.TargetType target,
-            Optional<GenericHID> controller) {
+	public Command shootAtHubCommand(Optional<GenericHID> controller) {
 
-        return Commands.run(() -> {
+		return aimAndShootCommand(
+				TurretUtil.TargetType.AllianceHUB,
+				controller)
+				.withName("ShootAtHub");
+	}
 
-            var pose = Robot.Drivetrain.getState().Pose;
+	public Command passLeftCommand(Optional<GenericHID> controller) {
 
-            TurretUtil.ShotSolution solution =
-                    TurretUtil.computeShotSolution(pose, target);
+		return aimAndShootCommand(
+				TurretUtil.TargetType.LEFT_PASS,
+				controller)
+				.withName("PassLeft");
+	}
 
-            spinUpAndFeed(solution.shooterSpeedRPS);
+	public Command passRightCommand(Optional<GenericHID> controller) {
 
-        //     controller.ifPresent(
-        //             c -> c.setRumble(RumbleType.kBothRumble, 0));
+		return aimAndShootCommand(
+				TurretUtil.TargetType.RIGHT_PASS,
+				controller)
+				.withName("PassRight");
+	}
 
-        }, Robot.Shooter, Robot.Spindexer)
+	public Command passClosestCommand(Optional<GenericHID> controller) {
 
-        .finallyDo(__ -> {
+		Supplier<TurretUtil.TargetType> closestTarget = () -> TurretUtil
+				.getClosestPassTarget(Robot.Drivetrain.getState().Pose);
 
-            Robot.Shooter.stop();
-            Robot.Spindexer.stop();
+		return Commands.parallel(
 
-        //     controller.ifPresent(
-                //     c -> c.setRumble(RumbleType.kBothRumble, 0));
-        })
-        .withName("ShootWithoutAngleCheck-" + target);
-    }
+				Robot.Turret.autoAimCommand(
+						() -> Robot.Drivetrain.getState().Pose,
+						closestTarget,
+						() -> Robot.Drivetrain.getState().Speeds,
+						() -> Units.degreesToRadians(Robot.Drivetrain.getPigeon2()
+								.getAngularVelocityZWorld().getValueAsDouble()),
+						controller),
 
-    public Command shootAtSpeedWithoutAngleCheckCommand(
-            double rps,
-            Optional<GenericHID> controller) {
+				Commands.run(() -> {
 
-        return Commands.run(() -> {
+					var pose = Robot.Drivetrain.getState().Pose;
 
-            spinUpAndFeed(rps);
+					TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose,
+							closestTarget.get());
 
-        }, Robot.Shooter, Robot.Spindexer)
+					SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
 
-        .finallyDo(__ -> {
+					boolean aligned = solution.isValid
+							&& Math.abs(Robot.Turret
+									.getErrorDegrees()) < kTurretAlignToleranceDeg;
 
-            Robot.Shooter.stop();
-            Robot.Spindexer.stop();
+					if (aligned) {
+						spinUpAndFeed(solution.shooterSpeedRPS);
+					} else {
+						Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
+						Robot.Spindexer.stop();
+					}
 
-        //     controller.ifPresent(
-                //     c -> c.setRumble(RumbleType.kBothRumble, 0));
-        });
-    }
+				}, Robot.Shooter, Robot.Spindexer)
 
-    public Command shootAtHubCommand(Optional<GenericHID> controller) {
+						.finallyDo(__ -> {
 
-        Supplier<Translation2d> hub =
-                () -> FieldConstants.getAllianceHub().toTranslation2d();
-
-        return Commands.sequence(
-
-                rotateIntoRangeCommand(
-                        TurretUtil.TargetType.AllianceHUB,
-                        hub).withTimeout(4),
-
-                aimAndShootCommand(
-                        TurretUtil.TargetType.AllianceHUB,
-                        controller))
-
-                .withName("ShootAtHub");
-    }
-
-    public Command autoShootAtHubCommand(Optional<GenericHID> controller) {
-
-        Supplier<Translation2d> hub =
-                () -> FieldConstants.getAllianceHub().toTranslation2d();
-
-        return Commands.sequence(
-
-                rotateIntoRangeCommand(
-                        TurretUtil.TargetType.AllianceHUB,
-                        hub),
-
-                Commands.parallel(
-
-                        Robot.Turret.autoAimCommand(
-                                () -> Robot.Drivetrain.getState().Pose,
-                                () -> TurretUtil.TargetType.AllianceHUB,
-                                () -> Robot.Drivetrain.getState().Speeds,
-                                () -> Units.degreesToRadians(Robot.Drivetrain.getPigeon2().getAngularVelocityZWorld().getValueAsDouble()),
-                                controller),
-
-                        Commands.sequence(
-
-                                Commands.waitSeconds(2.0),
-
-                                Commands.waitUntil(() ->
-                                        Math.abs(Robot.Turret.getErrorDegrees())
-                                                < kTurretAlignToleranceDeg),
-
-                                Commands.run(() -> {
-
-                                    var pose = Robot.Drivetrain.getState().Pose;
-
-                                    TurretUtil.ShotSolution solution =
-                                            TurretUtil.computeShotSolution(
-                                                    pose,
-                                                    TurretUtil.TargetType.AllianceHUB);
-
-                                    if (solution.isValid) {
-
-                                        spinUpAndFeed(solution.shooterSpeedRPS);
-                                    } else {
-
-                                        Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
-                                    }
-
-                                }, Robot.Shooter, Robot.Spindexer)
-
-                                .finallyDo(__ -> {
-
-                                    Robot.Shooter.stop();
-                                    Robot.Spindexer.stop();
-                                })
-                        )
-                )
-        )
-        .withName("AutoShootAtHub");
-    }
-
-    public Command passLeftCommand(Optional<GenericHID> controller) {
-
-        Supplier<Translation2d> target =
-                () -> FieldConstants.leftPassTarget
-                        .getTranslation()
-                        .toTranslation2d();
-
-        return Commands.sequence(
-
-                aimAndShootCommand(
-                        TurretUtil.TargetType.LEFT_PASS,
-                        controller))
-
-                .withName("PassLeft");
-    }
-
-    public Command passRightCommand(Optional<GenericHID> controller) {
-
-        Supplier<Translation2d> target =
-                () -> FieldConstants.rightPassTarget
-                        .getTranslation()
-                        .toTranslation2d();
-
-        return Commands.sequence(
-
-                aimAndShootCommand(
-                        TurretUtil.TargetType.RIGHT_PASS,
-                        controller))
-
-                .withName("PassRight");
-    }
-
-    public Command passClosestCommand(Optional<GenericHID> controller) {
-
-        Supplier<TurretUtil.TargetType> closestTarget = () -> TurretUtil.getClosestPassTarget(Robot.Drivetrain.getState().Pose);
-
-        return Commands.parallel(
-
-                Robot.Turret.autoAimCommand(
-                        () -> Robot.Drivetrain.getState().Pose,
-                        closestTarget,
-                        () -> Robot.Drivetrain.getState().Speeds,
-                        () -> Units.degreesToRadians(Robot.Drivetrain.getPigeon2().getAngularVelocityZWorld().getValueAsDouble()),
-                        controller),
-
-                Commands.waitUntil(() ->
-                        Math.abs(Robot.Turret.getErrorDegrees()) < kTurretAlignToleranceDeg)
-                        .withTimeout(2.0)
-
-                        .andThen(
-
-                                Commands.run(() -> {
-
-                                    var pose = Robot.Drivetrain.getState().Pose;
-
-                                    TurretUtil.ShotSolution solution =
-                                            TurretUtil.computeShotSolution(pose, closestTarget.get());
-
-                                    SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
-
-                                    spinUpAndFeed(solution.shooterSpeedRPS);
-
-                                }, Robot.Shooter, Robot.Spindexer)
-                        )
-
-                        .finallyDo(__ -> {
-
-                            Robot.Shooter.stop();
-                            Robot.Spindexer.stop();
-                        })
-        )
-        .withName("PassClosest");
-    }
+							Robot.Shooter.stop();
+							Robot.Spindexer.stop();
+						}))
+				.withName("PassClosest");
+	}
 }

@@ -5,12 +5,6 @@
     "data": {
       "commands": [
         {
-          "type": "path",
-          "data": {
-            "pathName": "SL-LT"
-          }
-        },
-        {
           "type": "parallel",
           "data": {
             "commands": [
@@ -23,26 +17,7 @@
               {
                 "type": "path",
                 "data": {
-                  "pathName": "LT-LG"
-                }
-              }
-            ]
-          }
-        },
-        {
-          "type": "parallel",
-          "data": {
-            "commands": [
-              {
-                "type": "path",
-                "data": {
-                  "pathName": "LG-LShoot"
-                }
-              },
-              {
-                "type": "named",
-                "data": {
-                  "name": "RetractIntakeCommand"
+                  "pathName": "SL-GL"
                 }
               }
             ]
@@ -51,7 +26,19 @@
         {
           "type": "named",
           "data": {
-            "name": "AutoShootAtHub"
+            "name": "RetractIntakeCommand"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "GL-LL"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "ShootAtHub"
           }
         }
       ]

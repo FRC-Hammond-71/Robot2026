@@ -23,6 +23,7 @@ public class DriveTelemetry {
 
     private final NetworkTableInstance inst = NetworkTableInstance.getDefault();
     private final NetworkTable driveStateTable = inst.getTable("DriveState");
+    private final StructPublisher<Pose2d> drivePose = driveStateTable.getStructTopic("Pose", Pose2d.struct).publish();
     private final StructPublisher<ChassisSpeeds> driveSpeeds = driveStateTable.getStructTopic("Speeds", ChassisSpeeds.struct).publish();
     private final StructArrayPublisher<SwerveModuleState> driveModuleStates = driveStateTable.getStructArrayTopic("ModuleStates", SwerveModuleState.struct).publish();
     private final StructArrayPublisher<SwerveModuleState> driveModuleTargets = driveStateTable.getStructArrayTopic("ModuleTargets", SwerveModuleState.struct).publish();
@@ -62,6 +63,7 @@ public class DriveTelemetry {
     }
 
     public void publish(SwerveDriveState state) {
+        drivePose.set(state.Pose);
         driveSpeeds.set(state.Speeds);
         driveModuleStates.set(state.ModuleStates);
         driveModuleTargets.set(state.ModuleTargets);

@@ -13,20 +13,13 @@
         {
           "type": "wait",
           "data": {
-            "waitTime": 2.5
+            "waitTime": 2.0
           }
         },
         {
-          "type": "parallel",
+          "type": "named",
           "data": {
-            "commands": [
-              {
-                "type": "named",
-                "data": {
-                  "name": "AutoShootAtHub"
-                }
-              }
-            ]
+            "name": "ShootAtHub"
           }
         }
       ]

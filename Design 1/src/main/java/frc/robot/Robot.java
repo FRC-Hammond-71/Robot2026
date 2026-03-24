@@ -23,7 +23,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 import frc.robot.generated.TunerConstants;
-import frc.robot.odometry.VisionStdDevCalculator;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
@@ -97,20 +96,12 @@ public class Robot extends TimedRobot {
                     visionTelemetry.publish(result);
 
                     var vm = result.measurement();
-                    int tagCount = result.telemetry().tagCount();
-                    double avgTagDist = limelightAvgTagDist();
-                    Drivetrain.addVisionMeasurement(vm.pose(), vm.timestampSeconds(), VisionStdDevCalculator.calculate(tagCount, avgTagDist));
+                    Drivetrain.addVisionMeasurement(vm.pose(), vm.timestampSeconds(), Constants.Odometry.kDefaultVisionStdDevs);
                 }
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-    }
-
-    private double limelightAvgTagDist() {
-        return frc.robot.Limelight.Limelight.useDevice("limelight")
-            .map(ll -> ll.getLastAvgTagDist())
-            .orElse(Double.MAX_VALUE);
     }
 
     private Optional<VisionSubsystem.VisionResult> getVisionMeasurement() {
