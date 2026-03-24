@@ -67,6 +67,10 @@ public class GameCommands {
         NamedCommands.registerCommand(
                 "PassRight",
                 passRightCommand(Optional.empty()));
+
+        NamedCommands.registerCommand(
+                "PassClosest",
+                passClosestCommand(Optional.empty()));
     }
 
     public Command rotateIntoRangeCommand(
@@ -285,10 +289,6 @@ public class GameCommands {
 
         return Commands.sequence(
 
-                rotateIntoRangeCommand(
-                        TurretUtil.TargetType.LEFT_PASS,
-                        target),
-
                 aimAndShootCommand(
                         TurretUtil.TargetType.LEFT_PASS,
                         controller))
@@ -305,14 +305,52 @@ public class GameCommands {
 
         return Commands.sequence(
 
-                rotateIntoRangeCommand(
-                        TurretUtil.TargetType.RIGHT_PASS,
-                        target),
-
                 aimAndShootCommand(
                         TurretUtil.TargetType.RIGHT_PASS,
                         controller))
 
                 .withName("PassRight");
+    }
+
+    public Command passClosestCommand(Optional<GenericHID> controller) {
+
+        Supplier<TurretUtil.TargetType> closestTarget = () -> TurretUtil.getClosestPassTarget(Robot.Drivetrain.getState().Pose);
+
+        return Commands.parallel(
+
+                Robot.Turret.autoAimCommand(
+                        () -> Robot.Drivetrain.getState().Pose,
+                        closestTarget,
+                        () -> Robot.Drivetrain.getState().Speeds,
+                        () -> Units.degreesToRadians(Robot.Drivetrain.getPigeon2().getAngularVelocityZWorld().getValueAsDouble()),
+                        controller),
+
+                Commands.waitUntil(() ->
+                        Math.abs(Robot.Turret.getErrorDegrees()) < kTurretAlignToleranceDeg)
+                        .withTimeout(2.0)
+
+                        .andThen(
+
+                                Commands.run(() -> {
+
+                                    var pose = Robot.Drivetrain.getState().Pose;
+
+                                    TurretUtil.ShotSolution solution =
+                                            TurretUtil.computeShotSolution(pose, closestTarget.get());
+
+                                    SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
+
+                                    spinUpAndFeed(solution.shooterSpeedRPS);
+
+                                }, Robot.Shooter, Robot.Spindexer)
+                        )
+
+                        .finallyDo(__ -> {
+
+                            Robot.Shooter.stop();
+                            Robot.Spindexer.stop();
+                        })
+        )
+        .withName("PassClosest");
     }
 }

@@ -22,6 +22,10 @@ import edu.wpi.first.units.measure.AngularVelocity;
 
 public class Constants {
 
+    public static final class RobotMode {
+        public static final boolean kCompetitionMode = false;
+    }
+
     public static class Vision {
 
         // Camera offset from turret pivot in turret-local frame (from CAD)
@@ -64,6 +68,7 @@ public class Constants {
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
         public static final double kMaxVelocity = 4; // Maximum velocity (rad/s)
         public static final double kMaxAcceleration = 4; // Maximum acceleration (rad/s²)
+        public static final boolean kShootOnTheMove = true; // True = use leading shot (accounts for robot velocity), false = static shot
         public static final boolean kTurretEnabled = true; // Set false if turret is mechanically/electrically broken; holds at min angle
         public static final boolean kBrakeMode = true; // Brake mode enabled (boolean)
         public static final boolean kEnableStatorLimit = true; // Stator current limit enabled (boolean)
@@ -83,7 +88,9 @@ public class Constants {
     
         // Physics model — ALL THREE must be measured on your physical robot
         public static final double kLaunchAngleRad      = Math.toRadians(42.0);
-        public static final double kHeightDeltaMeters   = 0.5;    // MEASURE: launcher exit to hub opening (m)
+        public static final double kLaunchHeightMeters   = 0.47117; // Height of ball exit point above floor (m)
+        @Deprecated
+        public static final double kHeightDeltaMeters   = kLaunchHeightMeters; // Alias for backward compat
         public static final double kWheelDiameterMeters = 0.1016; // MEASURE: roller contact diameter (m)
         public static final double kSlipFactor          = 0.90;   // TUNE: 0.85–0.95 typical, 1.0 = no slip
         public static final double kG                   = 9.81;
@@ -124,12 +131,12 @@ public class Constants {
     public static final class Odometry {
 
         public static final Matrix<N3, N1> kOdometryStdDevs = VecBuilder.fill(0.01, 0.01, 0.005);
-        public static final Matrix<N3, N1> kDefaultVisionStdDevs = VecBuilder.fill(0.5, 0.5, 1e9);
+        public static final Matrix<N3, N1> kDefaultVisionStdDevs = VecBuilder.fill(0.05, 0.05, 1e9);
 
-        public static final double kBaseVisionStdDev = 0.3;
-        public static final double kDistanceScaleFactor = 0.15;
-        public static final double kSingleTagMultiplier = 2.5;
-        public static final double kMinVisionStdDev = 0.1;
+        public static final double kBaseVisionStdDev = 0.1;
+        public static final double kDistanceScaleFactor = 0.1;
+        public static final double kSingleTagMultiplier = 1.2;
+        public static final double kMinVisionStdDev = 0.03;
         public static final double kMaxVisionStdDev = 3.0;
     }
 

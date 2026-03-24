@@ -98,38 +98,17 @@ public class ShooterSubsystem extends SubsystemWithMapleSimSimulation {
     }
 
     /**
-     * Calculates required flywheel RPS from horizontal distance using
-     * projectile motion physics for a fixed 42-degree launch angle.
-     *
-     * Formula: v = sqrt( (g * d^2) / (cos^2(θ) * (2*d*tan(θ) - 2*h)) )
-     * Then: RPS = v / (π * wheelDiameter)
-     *
-     * Requires tuning of kHeightDeltaMeters, kWheelDiameterMeters, kSlipFactor.
+     * Calculates required flywheel RPS from horizontal distance.
+     * Delegates to the unified ShootingCalibration system which applies
+     * empirical correction to the physics model.
      */
     public double calculateTargetRPS(double distanceMeters) {
-        double angle = Constants.Shooter.kLaunchAngleRad;
-        double h = Constants.Shooter.kHeightDeltaMeters;
-        double d = distanceMeters;
-        double g = Constants.Shooter.kG;
-
-        double numerator = g * d * d;
-        double denominator = Math.pow(Math.cos(angle), 2)
-                * (2.0 * d * Math.tan(angle) - 2.0 * h);
-
-        // Guard: geometry unsolvable (target too close or below launcher plane)
-        if (denominator <= 0) {
-            SmartDashboard.putBoolean("Shooter/PhysicsValid", false);
-            return Constants.Shooter.kMinSpeedRPS;
-        }
-
-        double exitVelocity = Math.sqrt(numerator / denominator);
-        double adjustedVelocity = exitVelocity / Constants.Shooter.kSlipFactor;
-        double targetRPS = adjustedVelocity / (Math.PI * Constants.Shooter.kWheelDiameterMeters);
+        double rps = TurretUtil.getShooterSpeed(distanceMeters, TurretUtil.TargetType.AllianceHUB);
 
         SmartDashboard.putBoolean("Shooter/PhysicsValid", true);
-        SmartDashboard.putNumber("Shooter/ExitVelocity_ms", exitVelocity);
+        SmartDashboard.putNumber("Shooter/CalibratedRPS", rps);
 
-        return targetRPS;
+        return rps;
     }
 
     // --- Distance from robot pose to hub center ---
@@ -167,10 +146,14 @@ public class ShooterSubsystem extends SubsystemWithMapleSimSimulation {
 
             lastShotTime = now;
 
-            double exitVelocity = desiredRPS * Math.PI * Constants.Shooter.kWheelDiameterMeters;
-            // exitVelocity *= 0.60;
+            Translation2d turretFieldPos = TurretUtil.getTurretPose(driveState.Pose).getTranslation();
 
-            // Translation2d turretOffset = new Translation2d(Constants.Turret.kTurretOffsetX, Constants.Turret.kTurretOffsetY);
+            // Apply calibration correction: divide by correction factor so the
+            // vacuum-physics sim projectile lands where the real drag-affected ball does
+            double rawExitVelocity = desiredRPS * Math.PI * Constants.Shooter.kWheelDiameterMeters;
+            double distToTarget = turretFieldPos.getDistance(FieldConstants.getAllianceHub().toTranslation2d());
+            double correction = TurretUtil.getCalibration().getCorrectionAt(distToTarget);
+            double exitVelocity = rawExitVelocity / correction;
 
             // Convert robot-relative speeds to field-relative for projectile simulation
             double cos = driveState.Pose.getRotation().getCos();
@@ -180,8 +163,6 @@ public class ShooterSubsystem extends SubsystemWithMapleSimSimulation {
                     driveState.Speeds.vxMetersPerSecond * sin + driveState.Speeds.vyMetersPerSecond * cos,
                     driveState.Speeds.omegaRadiansPerSecond);
 
-            Translation2d turretFieldPos = TurretUtil.getTurretPose(driveState.Pose).getTranslation();
-
             GamePieceProjectile projectile = new RebuiltFuelOnFly(
                 turretFieldPos,
                 Translation2d.kZero,
@@ -189,8 +170,7 @@ public class ShooterSubsystem extends SubsystemWithMapleSimSimulation {
                 turretFacing,
                 Meters.of(Constants.Turret.kTurretOffsetZ),
                 MetersPerSecond.of(exitVelocity),
-                Degrees.of(Math.toDegrees(Constants.Shooter.kLaunchAngleRad)))
-                .disableBecomesGamePieceOnFieldAfterTouchGround();
+                Degrees.of(Math.toDegrees(Constants.Shooter.kLaunchAngleRad)));
 
             SimulatedArena.getInstance().addGamePieceProjectile(projectile);
         }

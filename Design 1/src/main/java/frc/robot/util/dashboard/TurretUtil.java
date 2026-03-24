@@ -61,8 +61,7 @@ public class TurretUtil {
     private static final double TURRET_OFFSET_X = Constants.Turret.kTurretOffsetX;
     private static final double TURRET_OFFSET_Y = Constants.Turret.kTurretOffsetY;
 
-    private static final HubLookUpTable hubTable = new HubLookUpTable();
-    private static final PassLookUpTable passTable = new PassLookUpTable();
+    private static final ShootingCalibration calibration = ShootingCalibration.createDefault();
 
     /** Pre-converted 2D field targets. */
     private static final Pose2d LEFT_PASS_TARGET = FieldConstants.leftPassTarget.toPose2d();
@@ -198,7 +197,7 @@ public class TurretUtil {
             42,
             Constants.Shooter.kWheelDiameterMeters,
             Constants.Shooter.kSlipFactor,
-            Constants.Shooter.kHeightDeltaMeters,
+            Constants.Shooter.kLaunchHeightMeters,
             FieldConstants.HUB_ENTRANCE_HEIGHT);
 
     /**
@@ -231,9 +230,11 @@ public class TurretUtil {
         Rotation2d fieldAngle = new Rotation2d(mathSolution.yaw);
         double robotRelativeAngle = TurretSubsystem.fieldToRobotRelativeDegrees(fieldAngle, robotPose.getRotation());
 
-        // Get trajectory angle and time-of-flight from lookup table
-        double trajectoryAngle = getTrajectoryAngle(mathSolution.distance, target);
-        double tof = getTimeOfFlight(mathSolution.distance, target);
+        // Use calibrated RPS instead of raw physics RPS from ShooterMath
+        double targetHeight = getTargetHeight(target);
+        double calibratedRPS = calibration.getRPS(mathSolution.distance, targetHeight);
+        double calibratedTOF = calibration.getTimeOfFlight(mathSolution.distance, targetHeight);
+        double trajectoryAngle = Math.toDegrees(Constants.Shooter.kLaunchAngleRad);
 
         boolean valid = isWithinShootingRange(mathSolution.distance)
                 && isTurretAngleReachable(robotRelativeAngle);
@@ -242,8 +243,8 @@ public class TurretUtil {
                 mathSolution.distance,
                 robotRelativeAngle,
                 trajectoryAngle,
-                mathSolution.rps,
-                tof,
+                calibratedRPS,
+                calibratedTOF,
                 valid);
     }
 
@@ -267,18 +268,33 @@ public class TurretUtil {
     // INTERNAL HELPERS
     // =========================
 
-    /** Selects the correct lookup table and returns interpolated parameters. */
-    private static HubLookUpTable.ShootingParameters getTableParams(double distanceMeters, TargetType target) {
+    /** Returns the Z-height (meters above floor) of the given target. */
+    private static double getTargetHeight(TargetType target) {
         switch (target) {
-            // case HUB:
-            //     return hubTable.getParameters(distanceMeters);
-            // case LEFT_PASS:
-            // case RIGHT_PASS:
-            //     // PassLookUpTable has the same ShootingParameters shape; bridge here
-            //     PassLookUpTable.ShootingParameters p = passTable.getParameters(distanceMeters);
-            //     return new HubLookUpTable.ShootingParameters(p.shooterSpeed, p.trajectoryAngle, p.timeOfFlight);
+            case AllianceHUB:
+                return FieldConstants.HUB_ENTRANCE_HEIGHT;
+            case LEFT_PASS:
+            case RIGHT_PASS:
+                return 0.0;
             default:
-                return hubTable.getParameters(distanceMeters);
+                return FieldConstants.HUB_ENTRANCE_HEIGHT;
         }
+    }
+
+    /** Returns calibrated shooting parameters for the given distance and target. */
+    private static ShootingCalibration.ShootingParameters getTableParams(double distanceMeters, TargetType target) {
+        return calibration.getParameters(distanceMeters, getTargetHeight(target));
+    }
+
+    /** Returns the shared calibration instance for diagnostics. */
+    public static ShootingCalibration getCalibration() {
+        return calibration;
+    }
+
+    /** Returns whichever pass target (LEFT_PASS or RIGHT_PASS) is closest to the robot. */
+    public static TargetType getClosestPassTarget(Pose2d robotPose) {
+        double distL = robotPose.getTranslation().getDistance(LEFT_PASS_TARGET.getTranslation());
+        double distR = robotPose.getTranslation().getDistance(RIGHT_PASS_TARGET.getTranslation());
+        return distL <= distR ? TargetType.LEFT_PASS : TargetType.RIGHT_PASS;
     }
 }

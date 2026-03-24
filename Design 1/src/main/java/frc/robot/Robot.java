@@ -53,7 +53,7 @@ public class Robot extends TimedRobot {
             TunerConstants.FrontLeft, TunerConstants.FrontRight,
             TunerConstants.BackLeft, TunerConstants.BackRight);
 
-        visionTelemetry = new VisionTelemetry();
+        visionTelemetry = new VisionTelemetry(Constants.RobotMode.kCompetitionMode);
 
         try {
             Vision = new VisionSubsystem();
@@ -87,10 +87,6 @@ public class Robot extends TimedRobot {
 
         frc.robot.generated.FieldConstants.forceRedAlliance =
             edu.wpi.first.wpilibj.smartdashboard.SmartDashboard.getBoolean("ForceRedAlliance", false);
-
-        // Always-on turret/camera field poses (every frame, independent of vision)
-        double turretAngleRad = VisionSubsystem.turretRotationsToRadians(Turret.getPosition());
-        visionTelemetry.publishPoses(Drivetrain.getState().Pose, turretAngleRad);
 
         try {
             if (Vision != null) {

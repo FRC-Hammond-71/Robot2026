@@ -19,15 +19,12 @@ import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 
 import edu.wpi.first.math.Matrix;
-import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -68,9 +65,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     /** Swerve request to apply during robot-centric path following */
     private final SwerveRequest.ApplyRobotSpeeds m_pathApplyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
-    private StructPublisher<Pose2d> posePublisher = NetworkTableInstance.getDefault()
-        .getStructTopic("rPose", Pose2d.struct).publish();
-
     private BufferedStatusSignal<Angle> m_bufferedTurretAngle = null;
     private final TiltCompensatedOdometry tiltCompensatedOdometry = new TiltCompensatedOdometry();
     private final OdometryDiagnostics odometryDiagnostics = new OdometryDiagnostics();
@@ -164,8 +158,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public void updateOdometry() {
-        // publish current drivetrain pose
-        this.posePublisher.set(this.getState().Pose);
     }
 
     public void configureAutoBuilder() {

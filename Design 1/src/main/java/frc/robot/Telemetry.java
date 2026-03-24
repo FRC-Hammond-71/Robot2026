@@ -52,17 +52,12 @@ public class Telemetry {
 
     /* Robot swerve drive state */
     private final NetworkTable driveStateTable = inst.getTable("DriveState");
-    private final StructPublisher<Pose2d> drivePose = driveStateTable.getStructTopic("Pose", Pose2d.struct).publish();
     private final StructPublisher<ChassisSpeeds> driveSpeeds = driveStateTable.getStructTopic("Speeds", ChassisSpeeds.struct).publish();
     private final StructArrayPublisher<SwerveModuleState> driveModuleStates = driveStateTable.getStructArrayTopic("ModuleStates", SwerveModuleState.struct).publish();
     private final StructArrayPublisher<SwerveModuleState> driveModuleTargets = driveStateTable.getStructArrayTopic("ModuleTargets", SwerveModuleState.struct).publish();
     private final StructArrayPublisher<SwerveModulePosition> driveModulePositions = driveStateTable.getStructArrayTopic("ModulePositions", SwerveModulePosition.struct).publish();
     private final DoublePublisher driveTimestamp = driveStateTable.getDoubleTopic("Timestamp").publish();
     private final DoublePublisher driveOdometryFrequency = driveStateTable.getDoubleTopic("OdometryFrequency").publish();
-
-    private final StructPublisher<Pose2d> predictedRobotPoses500ms = inst.getStructTopic("Robot/Pose/Predictions/500ms", Pose2d.struct).publish();
-    private final StructPublisher<Pose2d> predictedRobotPoses1s = inst.getStructTopic("Robot/Pose/Predictions/1s", Pose2d.struct).publish();
-    private final StructPublisher<Pose2d> predictedRobotPoses2s = inst.getStructTopic("Robot/Pose/Predictions/2s", Pose2d.struct).publish();
 
     /* Turret field-space heading (robot translation + turret field heading) */
     private final StructPublisher<Pose2d> turretFieldPose = driveStateTable.getStructTopic("Turret/FieldPose", Pose2d.struct).publish();
@@ -82,6 +77,16 @@ public class Telemetry {
     private final DoublePublisher shotTimeOfFlight = shotTable.getDoubleTopic("TimeOfFlightSec").publish();
     private final BooleanPublisher shotValid = shotTable.getBooleanTopic("Valid").publish();
     private TurretUtil.ShotSolution m_latestShot = null;
+
+    /* 3D trajectory arc for shot visualization */
+    private static final int TRAJECTORY_SAMPLES = 5;
+    private static final double G = 9.81;
+    private static final double TRAJECTORY_UPDATE_INTERVAL_S = 0.5;
+    private double m_lastTrajectoryUpdateTime = 0;
+    private final StructArrayPublisher<Pose3d> trajectoryPub =
+            inst.getStructArrayTopic("Field/ShotTrajectory", Pose3d.struct).publish();
+    private final StructArrayPublisher<Pose3d> calibratedTrajectoryPub =
+            inst.getStructArrayTopic("Field/ShotTrajectoryCalibrated", Pose3d.struct).publish();
 
     /* Robot pose for field positioning */
     private final NetworkTable table = inst.getTable("Pose");
@@ -142,20 +147,12 @@ public class Telemetry {
         SmartDashboard.putNumber("DistanceToHub/Turret", TurretUtil.getTurretPose(robotPose).getTranslation().getDistance(hub));
 
         /* Telemeterize the swerve drive state */
-        drivePose.set(state.Pose);
         driveSpeeds.set(state.Speeds);
         driveModuleStates.set(state.ModuleStates);
         driveModuleTargets.set(state.ModuleTargets);
         driveModulePositions.set(state.ModulePositions);
         driveTimestamp.set(state.Timestamp);
         driveOdometryFrequency.set(1.0 / state.OdometryPeriod);
-
-        // Pose Predictions
-        predictedRobotPoses500ms.set(PosePrediction.Exponential(state.Pose, state.Speeds, 0.5));
-        predictedRobotPoses1s.set(PosePrediction.Exponential(state.Pose, state.Speeds, 1));
-        predictedRobotPoses2s.set(PosePrediction.Exponential(state.Pose, state.Speeds, 2));
-
-        // predictedRobotPoses1s.set(null);
 
         // Leading shot debug
         if (m_latestShot != null) {
@@ -214,11 +211,72 @@ public class Telemetry {
                 Constants.Turret.kTurretOffsetZ,
                 new Rotation3d(0, 0, m_turretFieldHeading.getRadians())));
 
+        /* Publish 3D trajectory arcs when a shot solution exists (throttled to reduce lag) */
+        double now = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+        if (now - m_lastTrajectoryUpdateTime >= TRAJECTORY_UPDATE_INTERVAL_S) {
+            m_lastTrajectoryUpdateTime = now;
+            if (m_latestShot != null && m_latestShot.isValid) {
+                publishTrajectoryArc(turretTranslation, m_latestShot);
+            } else {
+                trajectoryPub.set(new Pose3d[0]);
+                calibratedTrajectoryPub.set(new Pose3d[0]);
+            }
+        }
+
         /* Telemeterize each module state to a Mechanism2d */
         for (int i = 0; i < 4; ++i) {
             m_moduleSpeeds[i].setAngle(state.ModuleStates[i].angle);
             m_moduleDirections[i].setAngle(state.ModuleStates[i].angle);
             m_moduleSpeeds[i].setLength(state.ModuleStates[i].speedMetersPerSecond / (2 * MaxSpeed));
         }
+    }
+
+    /**
+     * Computes and publishes a parabolic trajectory arc as Pose3d[] for 3D visualization.
+     * Uses the physics-equivalent exit velocity so the arc ends at the target.
+     */
+    private void publishTrajectoryArc(Translation2d turretXY, TurretUtil.ShotSolution shot) {
+        double pitchRad = Math.toRadians(shot.trajectoryAngleDegrees);
+        double yawRad = m_turretFieldHeading.getRadians();
+        double launchZ = Constants.Turret.kTurretOffsetZ;
+        double cosP = Math.cos(pitchRad);
+        double sinP = Math.sin(pitchRad);
+
+        var cal = TurretUtil.getCalibration();
+        double targetHeight = FieldConstants.HUB_ENTRANCE_HEIGHT;
+
+        // Physics arc (no drag correction)
+        double physicsExitV = cal.getPhysicsRPS(shot.distanceMeters, targetHeight)
+                * Math.PI * Constants.Shooter.kWheelDiameterMeters * Constants.Shooter.kSlipFactor;
+        trajectoryPub.set(buildArc(turretXY, physicsExitV, cosP, sinP, yawRad, launchZ));
+
+        // Calibrated arc (empirical correction)
+        double calibratedExitV = cal.getRPS(shot.distanceMeters, targetHeight)
+                * Math.PI * Constants.Shooter.kWheelDiameterMeters * Constants.Shooter.kSlipFactor;
+        calibratedTrajectoryPub.set(buildArc(turretXY, calibratedExitV, cosP, sinP, yawRad, launchZ));
+    }
+
+    private Pose3d[] buildArc(Translation2d origin, double exitV,
+                               double cosP, double sinP, double yawRad, double launchZ) {
+        double vx = exitV * cosP * Math.cos(yawRad);
+        double vy = exitV * cosP * Math.sin(yawRad);
+        double vz = exitV * sinP;
+
+        double tGround = (vz + Math.sqrt(vz * vz + 2 * G * launchZ)) / G;
+
+        Pose3d[] arc = new Pose3d[TRAJECTORY_SAMPLES + 1];
+        for (int i = 0; i <= TRAJECTORY_SAMPLES; i++) {
+            double t = tGround * i / TRAJECTORY_SAMPLES;
+            double x = origin.getX() + vx * t;
+            double y = origin.getY() + vy * t;
+            double z = launchZ + vz * t - 0.5 * G * t * t;
+            if (z < 0) z = 0;
+
+            double curVz = vz - G * t;
+            double curPitch = Math.atan2(curVz, exitV * cosP);
+
+            arc[i] = new Pose3d(x, y, z, new Rotation3d(0, -curPitch, yawRad));
+        }
+        return arc;
     }
 }

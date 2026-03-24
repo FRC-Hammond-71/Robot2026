@@ -181,7 +181,7 @@ public class RobotContainer {
 
 		RobotModeTriggers.teleop()
 				.and(Controllers.Operator.x())
-				.whileTrue(gameCommands.shootAtSpeedWithoutAngleCheckCommand(70, driverController));
+				.whileTrue(gameCommands.passClosestCommand(driverController));
 
 		RobotModeTriggers.teleop().and(Controllers.Operator.y()).onTrue(Robot.Spindexer.counterClockwiseCommand(Constants.Spindexer.kIndexingSpeed));
 

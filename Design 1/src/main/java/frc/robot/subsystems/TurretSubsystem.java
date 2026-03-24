@@ -322,10 +322,9 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 			double omega = Math.abs(omegaPigeon) > Math.abs(omegaKinematics)
 					? omegaPigeon : omegaKinematics;
 
-			// Use current pose for angle computation — using a predicted pose
-			// creates a heading mismatch since setRobotRelativeAngle() is relative
-			// to the current robot heading, not the predicted one.
-			TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(robotPose, target.get());
+			TurretUtil.ShotSolution solution = Constants.Turret.kShootOnTheMove
+					? TurretUtil.computeLeadingShot(robotPose, speeds, target.get())
+					: TurretUtil.computeShotSolution(robotPose, target.get());
 
 			if (solution.isValid) {
 
