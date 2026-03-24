@@ -128,6 +128,9 @@ public class VisionSubsystem {
             return Optional.empty();
         }
 
+        // MegaTag2 requires the robot heading every frame to compute valid poses.
+        LimelightHelpers.SetRobotOrientation(limelight.name, pigeonYawDeg, yawRateDegPerSec, 0, 0, 0, 0);
+
         double robotSpeedMps = Math.hypot(robotVelocity.vxMetersPerSecond, robotVelocity.vyMetersPerSecond);
         Optional<Pose2d> raw = limelight.getRawEstimatedPose();
         Optional<Pose2d> mega = limelight.getStableEstimatedPose(robotSpeedMps);

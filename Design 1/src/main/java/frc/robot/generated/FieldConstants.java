@@ -11,6 +11,9 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 
 public class FieldConstants{
+
+    /** Set to true to force Red alliance targeting when DS doesn't report one. */
+    public static boolean forceRedAlliance = false;
     
     public static final double HUB_ENTRANCE_HEIGHT = 1.83;
 
@@ -36,7 +39,7 @@ public class FieldConstants{
         if (alliance.isPresent()) {
             return alliance.get() == Alliance.Blue ? BLUE_HUB : RED_HUB;
         }
-        return BLUE_HUB;
+        return forceRedAlliance ? RED_HUB : BLUE_HUB;
     }
 
     private static final StructArrayPublisher<Pose3d> hubPosesPub =

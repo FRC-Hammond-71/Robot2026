@@ -85,6 +85,9 @@ public class Robot extends TimedRobot {
     public void robotPeriodic() {
         CommandScheduler.getInstance().run();
 
+        frc.robot.generated.FieldConstants.forceRedAlliance =
+            edu.wpi.first.wpilibj.smartdashboard.SmartDashboard.getBoolean("ForceRedAlliance", false);
+
         // Always-on turret/camera field poses (every frame, independent of vision)
         double turretAngleRad = VisionSubsystem.turretRotationsToRadians(Turret.getPosition());
         visionTelemetry.publishPoses(Drivetrain.getState().Pose, turretAngleRad);

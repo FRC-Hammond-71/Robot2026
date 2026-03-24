@@ -117,6 +117,7 @@ public class GameCommands {
 
                 Commands.waitUntil(() ->
                         Math.abs(Robot.Turret.getErrorDegrees()) < kTurretAlignToleranceDeg)
+                        .withTimeout(2.0)
 
                         .andThen(
 
@@ -130,18 +131,7 @@ public class GameCommands {
 
                                             SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
 
-                                            if (solution.isValid) {
-
-                                                spinUpAndFeed(solution.shooterSpeedRPS);
-
-                                                // controller.ifPresent(c -> c.setRumble(RumbleType.kBothRumble, 0));
-
-                                            } else {
-
-                                                Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
-                                                Robot.Spindexer.stop();
-                                                // controller.ifPresent( c -> c.setRumble(RumbleType.kBothRumble, 1));
-                                            }
+                                            spinUpAndFeed(solution.shooterSpeedRPS);
 
                                         }, Robot.Shooter, Robot.Spindexer)
                                 )
