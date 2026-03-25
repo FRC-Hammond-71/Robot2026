@@ -2,6 +2,8 @@ package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.*;
 
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import com.ctre.phoenix6.BaseStatusSignal;
@@ -67,6 +69,9 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 	private final boolean enableSupplyLimit = Constants.Turret.kEnableSupplyLimit;
 	private final double supplyCurrentLimit = Constants.Turret.kSupplyCurrentLimit;
 
+	private final StructPublisher<Pose2d> activeTargetPosePub = NetworkTableInstance.getDefault()
+			.getStructTopic("Turret/ActiveTargetPose", Pose2d.struct).publish();
+
 	private final TalonFX motor;
 
 	private TalonFXSimState simState;
@@ -84,6 +89,8 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 
 	private double targetRobotRelativeDegrees = Constants.Turret.kOriginAngle.in(Degrees);
 	private double operatorOffsetDegrees = 0.0;
+
+	private volatile TurretUtil.TargetType activeTargetType = TurretUtil.TargetType.ClosestHUB;
 
 	private SingleJointedArmSim pivotSim;
 
@@ -263,6 +270,10 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 		return targetRobotRelativeDegrees - getRobotRelativeAngleDegrees();
 	}
 
+	public TurretUtil.TargetType getActiveTargetType() {
+		return activeTargetType;
+	}
+
 	public void setRobotRelativeAngle(double angleDegrees) {
 		setRobotRelativeAngle(angleDegrees, 0);
 	}
@@ -310,11 +321,23 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 			Supplier<ChassisSpeeds> speedsSupplier,
 			Supplier<Double> gyroRateRadPerSec,
 			Optional<GenericHID> controller) {
+		return autoAimCommand(robotPoseSupplier, target, speedsSupplier, gyroRateRadPerSec, controller, true);
+	}
+
+	public Command autoAimCommand(
+			Supplier<Pose2d> robotPoseSupplier,
+			Supplier<TurretUtil.TargetType> target,
+			Supplier<ChassisSpeeds> speedsSupplier,
+			Supplier<Double> gyroRateRadPerSec,
+			Optional<GenericHID> controller,
+			boolean useLeading) {
 
 		return run(() -> {
 
 			Pose2d robotPose = robotPoseSupplier.get();
 			ChassisSpeeds speeds = speedsSupplier.get();
+			TurretUtil.TargetType currentTarget = target.get();
+			activeTargetType = currentTarget;
 
 			// Use whichever angular rate source reports higher magnitude
 			double omegaPigeon = gyroRateRadPerSec.get();
@@ -322,14 +345,14 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 			double omega = Math.abs(omegaPigeon) > Math.abs(omegaKinematics)
 					? omegaPigeon : omegaKinematics;
 
-			TurretUtil.ShotSolution solution = Constants.Turret.kShootOnTheMove
-					? TurretUtil.computeLeadingShot(robotPose, speeds, target.get())
-					: TurretUtil.computeShotSolution(robotPose, target.get());
+			TurretUtil.ShotSolution solution = (useLeading && Constants.Turret.kShootOnTheMove)
+					? TurretUtil.computeLeadingShot(robotPose, speeds, currentTarget)
+					: TurretUtil.computeShotSolution(robotPose, currentTarget);
 
 			if (solution.isValid) {
 
 				Translation2d turretField = TurretUtil.getTurretPose(robotPose).getTranslation();
-				Translation2d goal = TurretUtil.getTargetPose(target.get()).getTranslation();
+				Translation2d goal = TurretUtil.getTargetPose(currentTarget, robotPose).getTranslation();
 				double dx = goal.getX() - turretField.getX();
 				double dy = goal.getY() - turretField.getY();
 				double distSq = dx * dx + dy * dy;
@@ -355,11 +378,12 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 				double ffVolts = kV * turretVelRotPerSec;
 
 				setRobotRelativeAngle(solution.robotRelativeAngleDegrees, ffVolts);
-				
+
 			} else if (controller.isPresent()) {
 				// controller.get().setRumble(RumbleType.kBothRumble, 1);
 			}
 
+			activeTargetPosePub.set(TurretUtil.getTargetPose(currentTarget, robotPose));
 			SmartDashboard.putBoolean("Turret/AutoAim/IsValid", solution.isValid);
 
 		}).finallyDo(() -> {

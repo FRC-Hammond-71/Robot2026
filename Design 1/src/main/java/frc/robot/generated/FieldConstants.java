@@ -4,6 +4,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructArrayPublisher;
@@ -25,8 +26,8 @@ public class FieldConstants{
     public static final Translation3d BLUE_FAR_SIDE = new Translation3d(0.75, 7.25, 0);
 
 
-    public static final Pose3d leftPassTarget = new Pose3d(3, 6.0, 0, new Rotation3d());
-    public static final Pose3d rightPassTarget = new Pose3d(3, 1.960, 0, new Rotation3d());
+    public static final Pose3d leftPassTarget = new Pose3d(3.5, 6.0, 0, new Rotation3d());
+    public static final Pose3d rightPassTarget = new Pose3d(3.5, 1.960, 0, new Rotation3d());
 
 
     // public static Translation3d getAllianceHub() {
@@ -40,6 +41,12 @@ public class FieldConstants{
             return alliance.get() == Alliance.Blue ? BLUE_HUB : RED_HUB;
         }
         return forceRedAlliance ? RED_HUB : BLUE_HUB;
+    }
+
+    public static Translation3d getClosestHub(Translation2d robotPosition) {
+        double distBlue = robotPosition.getDistance(BLUE_HUB.toTranslation2d());
+        double distRed = robotPosition.getDistance(RED_HUB.toTranslation2d());
+        return distBlue <= distRed ? BLUE_HUB : RED_HUB;
     }
 
     private static final StructArrayPublisher<Pose3d> hubPosesPub =

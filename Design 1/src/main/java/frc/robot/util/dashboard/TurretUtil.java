@@ -1,10 +1,13 @@
 package frc.robot.util.dashboard;
 
+import com.pathplanner.lib.util.FlippingUtil;
+
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants;
 import frc.robot.Math.ShooterMath;
@@ -26,6 +29,7 @@ public class TurretUtil {
     /** Enum for selecting which lookup table / target to use. */
     public enum TargetType {
         AllianceHUB,
+        ClosestHUB,
         LEFT_PASS,
         RIGHT_PASS
     }
@@ -87,18 +91,29 @@ public class TurretUtil {
     // TARGET SELECTION
     // =========================
 
-    /** Returns the 2D field pose of the requested target. */
+    /** Returns the 2D field pose of the requested target. Does not support ClosestHUB. */
     public static Pose2d getTargetPose(TargetType target) {
+        boolean isRed = DriverStation.getAlliance().orElse(DriverStation.Alliance.Blue) == DriverStation.Alliance.Red;
         switch (target) {
             case AllianceHUB:
                 return new Pose2d(FieldConstants.getAllianceHub().toTranslation2d(), Rotation2d.kZero);
             case LEFT_PASS:
-                return LEFT_PASS_TARGET;
+                return isRed ? FlippingUtil.flipFieldPose(LEFT_PASS_TARGET) : LEFT_PASS_TARGET;
             case RIGHT_PASS:
-                return RIGHT_PASS_TARGET;
+                return isRed ? FlippingUtil.flipFieldPose(RIGHT_PASS_TARGET) : RIGHT_PASS_TARGET;
             default:
                 return null;
         }
+    }
+
+    /** Returns the 2D field pose of the requested target, resolving ClosestHUB using the robot pose. */
+    public static Pose2d getTargetPose(TargetType target, Pose2d robotPose) {
+        if (target == TargetType.ClosestHUB) {
+            return new Pose2d(
+                    FieldConstants.getClosestHub(robotPose.getTranslation()).toTranslation2d(),
+                    Rotation2d.kZero);
+        }
+        return getTargetPose(target);
     }
 
     // =========================
@@ -110,7 +125,7 @@ public class TurretUtil {
      */
     public static double getTurretCenterDistance(Pose2d robotPose, TargetType target) {
         Translation2d turret = getTurretPose(robotPose).getTranslation();
-        Translation2d goal = getTargetPose(target).getTranslation();
+        Translation2d goal = getTargetPose(target, robotPose).getTranslation();
         return turret.getDistance(goal);
     }
 
@@ -118,16 +133,15 @@ public class TurretUtil {
      * Horizontal distance in meters from the robot center to the target.
      */
     public static double getRobotCenterDistance(Pose2d robotPose, TargetType target) {
-        return robotPose.getTranslation().getDistance(getTargetPose(target).getTranslation());
+        return robotPose.getTranslation().getDistance(getTargetPose(target, robotPose).getTranslation());
     }
-
 
     /**
      * Field-relative angle (radians) from the turret to the target.
      */
     public static double getFieldAngleToTarget(Pose2d robotPose, TargetType target) {
         Translation2d turret = getTurretPose(robotPose).getTranslation();
-        Translation2d goal = getTargetPose(target).getTranslation();
+        Translation2d goal = getTargetPose(target, robotPose).getTranslation();
         double dx = goal.getX() - turret.getX();
         double dy = goal.getY() - turret.getY();
         return Math.atan2(dy, dx);
@@ -136,7 +150,9 @@ public class TurretUtil {
     /**
      * Robot-relative turret angle in degrees to aim at the target.
      * Uses Turret.fieldToRobotRelativeDegrees() — no manual normalization needed.
-     * @return Angle in [0°, 360°), directly comparable to turret motor range [90°, 270°]
+     * 
+     * @return Angle in [0°, 360°), directly comparable to turret motor range [90°,
+     *         270°]
      */
     public static double getRobotRelativeAngleDegrees(Pose2d robotPose, TargetType target) {
         Rotation2d fieldAngle = new Rotation2d(getFieldAngleToTarget(robotPose, target));
@@ -175,7 +191,9 @@ public class TurretUtil {
      * @return A {@link ShotSolution} with all parameters and a validity flag
      */
     public static ShotSolution computeShotSolution(Pose2d robotPose, TargetType target) {
-        // NOTE: Use getTurretCenterDistance or getRobotCenterDistance here depending on whether the lookup tables are based on turret-to-target or robot-to-target distance
+        // NOTE: Use getTurretCenterDistance or getRobotCenterDistance here depending on
+        // whether the lookup tables are based on turret-to-target or robot-to-target
+        // distance
         double dist = getTurretCenterDistance(robotPose, target);
         double robotRelativeAngle = getRobotRelativeAngleDegrees(robotPose, target);
 
@@ -207,7 +225,7 @@ public class TurretUtil {
      * estimate where the robot will be at time-of-flight.
      */
     public static ShotSolution computeLeadingShot(Pose2d robotPose, ChassisSpeeds robotVelocity, TargetType target) {
-        Translation2d targetTranslation = getTargetPose(target).getTranslation();
+        Translation2d targetTranslation = getTargetPose(target, robotPose).getTranslation();
 
         // ChassisSpeeds from the drivetrain is robot-relative (vx=forward, vy=left).
         // The intercept solver works in field coordinates, so rotate into field frame.
@@ -255,7 +273,8 @@ public class TurretUtil {
 
     /** True if the distance is within the lookup-table range. */
     public static boolean isWithinShootingRange(double distanceMeters) {
-        return distanceMeters >= Constants.Turret.kMinShootingDistance && distanceMeters <= Constants.Turret.kMaxShootingDistance;
+        return distanceMeters >= Constants.Turret.kMinShootingDistance
+                && distanceMeters <= Constants.Turret.kMaxShootingDistance;
     }
 
     /** True if the turret can physically reach the requested angle. */
@@ -273,6 +292,7 @@ public class TurretUtil {
     private static double getTargetHeight(TargetType target) {
         switch (target) {
             case AllianceHUB:
+            case ClosestHUB:
                 return FieldConstants.HUB_ENTRANCE_HEIGHT;
             case LEFT_PASS:
             case RIGHT_PASS:
@@ -292,10 +312,23 @@ public class TurretUtil {
         return calibration;
     }
 
-    /** Returns whichever pass target (LEFT_PASS or RIGHT_PASS) is closest to the robot. */
+    /**
+     * Returns whichever pass target (LEFT_PASS or RIGHT_PASS) is closest to the
+     * robot.
+     */
     public static TargetType getClosestPassTarget(Pose2d robotPose) {
-        double distL = robotPose.getTranslation().getDistance(LEFT_PASS_TARGET.getTranslation());
-        double distR = robotPose.getTranslation().getDistance(RIGHT_PASS_TARGET.getTranslation());
+
+        Pose2d leftTarget = LEFT_PASS_TARGET;
+        Pose2d rightTarget = RIGHT_PASS_TARGET;
+
+        if (DriverStation.getAlliance().orElse(DriverStation.Alliance.Blue) == DriverStation.Alliance.Red) {
+            leftTarget = FlippingUtil.flipFieldPose(leftTarget);
+            rightTarget = FlippingUtil.flipFieldPose(rightTarget);
+        }
+
+        double distL = robotPose.getTranslation().getDistance(leftTarget.getTranslation());
+        double distR = robotPose.getTranslation().getDistance(rightTarget.getTranslation());
+
         return distL <= distR ? TargetType.LEFT_PASS : TargetType.RIGHT_PASS;
     }
 }

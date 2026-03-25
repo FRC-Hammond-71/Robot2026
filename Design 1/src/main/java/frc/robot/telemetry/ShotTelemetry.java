@@ -33,7 +33,7 @@ public class ShotTelemetry {
     /* 3D trajectory arc for shot visualization */
     private static final int TRAJECTORY_SAMPLES = 5;
     private static final double G = 9.81;
-    private static final double TRAJECTORY_UPDATE_INTERVAL_S = 0.5;
+    private static final double TRAJECTORY_UPDATE_INTERVAL_S = 0.25;
     private double m_lastTrajectoryUpdateTime = 0;
     private final StructArrayPublisher<Pose3d> trajectoryPub =
             inst.getStructArrayTopic("Field/ShotTrajectory", Pose3d.struct).publish();

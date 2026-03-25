@@ -1,6 +1,7 @@
 package frc.robot.Commands;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import com.pathplanner.lib.auto.NamedCommands;
@@ -40,19 +41,19 @@ public class GameCommands {
 
 		NamedCommands.registerCommand(
 				"ShootAtHub",
-				shootAtHubCommand(Optional.empty()));
-				
+				Commands.defer(() -> shootAtHubCommand(Optional.empty()), Set.of()));
+
 		NamedCommands.registerCommand(
 				"PassLeft",
-				passLeftCommand(Optional.empty()));
+				Commands.defer(() -> passLeftCommand(Optional.empty()), Set.of()));
 
 		NamedCommands.registerCommand(
 				"PassRight",
-				passRightCommand(Optional.empty()));
+				Commands.defer(() -> passRightCommand(Optional.empty()), Set.of()));
 
 		NamedCommands.registerCommand(
 				"PassClosest",
-				passClosestCommand(Optional.empty()));
+				Commands.defer(() -> passClosestCommand(Optional.empty()), Set.of()));
 	}
 
 	public Command aimAndShootCommand(
@@ -71,33 +72,35 @@ public class GameCommands {
 										.getValueAsDouble()),
 						controller),
 
-				Commands.run(() -> {
+				Commands.sequence(
+						Commands.waitSeconds(0.1),
+						Commands.run(() -> {
 
-					var pose = Robot.Drivetrain.getState().Pose;
-					TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
+							var pose = Robot.Drivetrain.getState().Pose;
+							TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
 
-					if (!solution.isValid) {
-						Robot.Shooter.stop();
-						Robot.Spindexer.stop();
-						return;
-					}
+							if (!solution.isValid) {
+								Robot.Shooter.stop();
+								Robot.Spindexer.stop();
+								return;
+							}
 
-					SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
+							SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
 
-					Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
+							Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
 
-					boolean aligned = Math
-							.abs(Robot.Turret.getErrorDegrees()) < kTurretAlignToleranceDeg;
+							boolean aligned = Math.abs(solution.robotRelativeAngleDegrees
+										- Robot.Turret.getRobotRelativeAngleDegrees()) < kTurretAlignToleranceDeg;
 
-					boolean atSpeed = Robot.Shooter.isAtSpeed(solution.shooterSpeedRPS);
+							boolean atSpeed = Robot.Shooter.isAtSpeed(solution.shooterSpeedRPS);
 
-					if (aligned && atSpeed) {
-						Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
-					} else {
-						Robot.Spindexer.stop();
-					}
+							if (aligned && atSpeed) {
+								Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
+							} else {
+								Robot.Spindexer.stop();
+							}
 
-				}, Robot.Shooter, Robot.Spindexer)
+						}, Robot.Shooter, Robot.Spindexer))
 
 						.finallyDo(__ -> {
 							Robot.Shooter.stop();
@@ -116,10 +119,17 @@ public class GameCommands {
 
 			TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose, target);
 
-			spinUpAndFeed(solution.shooterSpeedRPS);
+			Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
 
-			// controller.ifPresent(
-			// c -> c.setRumble(RumbleType.kBothRumble, 0));
+			boolean turretSafe = solution.isValid
+					&& Math.abs(solution.robotRelativeAngleDegrees
+							- Robot.Turret.getRobotRelativeAngleDegrees()) < kTurretAlignToleranceDeg;
+
+			if (turretSafe && Robot.Shooter.isAtSpeed(solution.shooterSpeedRPS)) {
+				Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
+			} else {
+				Robot.Spindexer.stop();
+			}
 
 		}, Robot.Shooter, Robot.Spindexer)
 
@@ -127,9 +137,6 @@ public class GameCommands {
 
 					Robot.Shooter.stop();
 					Robot.Spindexer.stop();
-
-					// controller.ifPresent(
-					// c -> c.setRumble(RumbleType.kBothRumble, 0));
 				})
 				.withName("ShootWithoutAngleCheck-" + target);
 	}
@@ -140,7 +147,15 @@ public class GameCommands {
 
 		return Commands.run(() -> {
 
-			spinUpAndFeed(rps);
+			Robot.Shooter.setVelocity(rps);
+
+			boolean turretSafe = Math.abs(Robot.Turret.getErrorDegrees()) < kTurretAlignToleranceDeg;
+
+			if (turretSafe && Robot.Shooter.isAtSpeed(rps)) {
+				Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
+			} else {
+				Robot.Spindexer.stop();
+			}
 
 		}, Robot.Shooter, Robot.Spindexer)
 
@@ -148,9 +163,6 @@ public class GameCommands {
 
 					Robot.Shooter.stop();
 					Robot.Spindexer.stop();
-
-					// controller.ifPresent(
-					// c -> c.setRumble(RumbleType.kBothRumble, 0));
 				});
 	}
 
@@ -180,8 +192,7 @@ public class GameCommands {
 
 	public Command passClosestCommand(Optional<GenericHID> controller) {
 
-		Supplier<TurretUtil.TargetType> closestTarget = () -> TurretUtil
-				.getClosestPassTarget(Robot.Drivetrain.getState().Pose);
+		Supplier<TurretUtil.TargetType> closestTarget = () -> TurretUtil.getClosestPassTarget(Robot.Drivetrain.getState().Pose);
 
 		return Commands.parallel(
 
@@ -193,27 +204,35 @@ public class GameCommands {
 								.getAngularVelocityZWorld().getValueAsDouble()),
 						controller),
 
-				Commands.run(() -> {
+				Commands.sequence(
+						Commands.waitSeconds(0.1),
+						Commands.run(() -> {
 
-					var pose = Robot.Drivetrain.getState().Pose;
+							var pose = Robot.Drivetrain.getState().Pose;
 
-					TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose,
-							closestTarget.get());
+							TurretUtil.ShotSolution solution = TurretUtil.computeShotSolution(pose,
+									closestTarget.get());
 
-					SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
+							if (!solution.isValid) {
+								Robot.Shooter.stop();
+								Robot.Spindexer.stop();
+								return;
+							}
 
-					boolean aligned = solution.isValid
-							&& Math.abs(Robot.Turret
-									.getErrorDegrees()) < kTurretAlignToleranceDeg;
+							SmartDashboard.putNumber("Shooter/TargetRPS", solution.shooterSpeedRPS);
 
-					if (aligned) {
-						spinUpAndFeed(solution.shooterSpeedRPS);
-					} else {
-						Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
-						Robot.Spindexer.stop();
-					}
+							Robot.Shooter.setVelocity(solution.shooterSpeedRPS);
 
-				}, Robot.Shooter, Robot.Spindexer)
+							boolean aligned = Math.abs(solution.robotRelativeAngleDegrees
+									- Robot.Turret.getRobotRelativeAngleDegrees()) < kTurretAlignToleranceDeg;
+
+							if (aligned && Robot.Shooter.isAtSpeed(solution.shooterSpeedRPS)) {
+								Robot.Spindexer.clockwise(Constants.Spindexer.kIndexingSpeed);
+							} else {
+								Robot.Spindexer.stop();
+							}
+
+						}, Robot.Shooter, Robot.Spindexer))
 
 						.finallyDo(__ -> {
 

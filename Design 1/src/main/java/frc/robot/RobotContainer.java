@@ -5,6 +5,7 @@ import static edu.wpi.first.units.Units.*;
 import java.util.Optional;
 import java.util.Set;
 
+
 import org.ironmaple.simulation.SimulatedArena;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
@@ -63,7 +64,6 @@ public class RobotContainer {
 	private SlewRateLimiter xLimiter = new SlewRateLimiter(Constants.Drivetrain.kCruiseSpeed * 4);
 	private SlewRateLimiter yLimiter = new SlewRateLimiter(Constants.Drivetrain.kCruiseSpeed * 4);
 
-	private TargetType currentTurretTarget = TargetType.AllianceHUB;
 
 	public RobotContainer(Robot robot) {
 
@@ -96,13 +96,16 @@ public class RobotContainer {
 
 	private void registerNamedCommands() {
 
-		NamedCommands.registerCommand("ExtendIntakeCommand", Robot.Intake.extendCommand(0.5));
-		NamedCommands.registerCommand("RetractIntakeCommand", Robot.Intake.retractCommand(0.5));
+		NamedCommands.registerCommand("ExtendIntakeCommand",
+				Commands.defer(() -> Robot.Intake.extendCommand(0.5), Set.of()));
+		NamedCommands.registerCommand("RetractIntakeCommand",
+				Commands.defer(() -> Robot.Intake.retractCommand(0.5), Set.of()));
 
-		NamedCommands.registerCommand("Shoot", new ShootFuelCommand(Robot.Shooter, Robot.Drivetrain));
+		NamedCommands.registerCommand("Shoot",
+				Commands.defer(() -> new ShootFuelCommand(Robot.Shooter, Robot.Drivetrain), Set.of()));
 
 		NamedCommands.registerCommand("AimHub",
-				Robot.Turret.autoAimCommand(() -> Robot.Drivetrain.getState().Pose, () -> TargetType.AllianceHUB, () -> Robot.Drivetrain.getState().Speeds, () -> Units.degreesToRadians(Robot.Drivetrain.getPigeon2().getAngularVelocityZWorld().getValueAsDouble()), Optional.empty()));
+				Commands.defer(() -> Robot.Turret.autoAimCommand(() -> Robot.Drivetrain.getState().Pose, () -> TargetType.AllianceHUB, () -> Robot.Drivetrain.getState().Speeds, () -> Units.degreesToRadians(Robot.Drivetrain.getPigeon2().getAngularVelocityZWorld().getValueAsDouble()), Optional.empty()), Set.of()));
 
 		// NamedCommands.registerCommand("AimLeftPass",
 		// 		Robot.Turret.autoAimCommand(() -> Robot.Drivetrain.getState().Pose, () -> TargetType.LEFT_PASS));
@@ -110,7 +113,8 @@ public class RobotContainer {
 		// NamedCommands.registerCommand("AimRightPass",
 		// 		Robot.Turret.autoAimCommand(() -> Robot.Drivetrain.getState().Pose, () -> TargetType.RIGHT_PASS));
 
-		NamedCommands.registerCommand("StopTurret", Robot.Turret.stopCommand());
+		NamedCommands.registerCommand("StopTurret",
+				Commands.defer(() -> Robot.Turret.stopCommand(), Set.of()));
 	}
 
 	private void configureBindings() {
@@ -139,15 +143,6 @@ public class RobotContainer {
 
 			}));
 
-		// Controllers.Joystick.pov(90).onTrue(Commands.runOnce(() ->
-		// 		currentTurretTarget = TargetType.RIGHT_PASS));
-
-		// Controllers.Joystick.pov(0).onTrue(Commands.runOnce(() ->
-		// 		currentTurretTarget = TargetType.AllianceHUB));
-
-		// Controllers.Joystick.pov(270).onTrue(Commands.runOnce(() ->
-		// 		currentTurretTarget = TargetType.LEFT_PASS));
-
 		Controllers.Operator.pov(270).onTrue(Commands.runOnce(() ->
 				Robot.Turret.adjustOperatorOffsetDegrees(-0.1), Robot.Turret));
 
@@ -162,10 +157,11 @@ public class RobotContainer {
 		Robot.Turret.setDefaultCommand(
 				Robot.Turret.autoAimCommand(
 						() -> Robot.Drivetrain.getState().Pose,
-						() -> currentTurretTarget,
+						() -> TargetType.ClosestHUB,
 						() -> Robot.Drivetrain.getState().Speeds,
 						() -> Units.degreesToRadians(Robot.Drivetrain.getPigeon2().getAngularVelocityZWorld().getValueAsDouble()),
-						driverController));
+						driverController,
+						false));
 
 		RobotModeTriggers.teleop()
 				.and(Controllers.Operator.a())
@@ -205,7 +201,7 @@ public class RobotContainer {
 			var shot = TurretUtil.computeLeadingShot(
 					state.Pose,
 					state.Speeds,
-					currentTurretTarget);
+					Robot.Turret.getActiveTargetType());
 
 			logger.setShotSolution(shot);
 
