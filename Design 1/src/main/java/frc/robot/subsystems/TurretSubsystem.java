@@ -11,13 +11,14 @@ import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.NeutralOut;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.sim.TalonFXSimState;
+import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
-import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -42,6 +43,7 @@ import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.TimedRobot;
 
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -51,7 +53,6 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 	private final DCMotor dcMotor = DCMotor.getKrakenX60(1);
 
 	private final int canID = Constants.Turret.kTurretCanID;
-	private final double gearRatio = Constants.Turret.kGearRatio;
 
 	private final double kP = Constants.Turret.kKP;
 	private final double kI = Constants.Turret.kKI;
@@ -77,7 +78,8 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 	private TalonFXSimState simState;
 
 	private final NeutralOut neutralOutRequest = new NeutralOut();
-	private final PositionVoltage positionRequest = new PositionVoltage(0).withSlot(0);
+	private final MotionMagicVoltage positionRequest = new MotionMagicVoltage(0).withSlot(0);
+	private final PositionVoltage trackingRequest = new PositionVoltage(0).withSlot(0);
 
 	private final StatusSignal<Angle> positionSignal;
 	private final StatusSignal<AngularVelocity> velocitySignal;
@@ -85,10 +87,9 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 	private final StatusSignal<Current> statorCurrentSignal;
 	private final StatusSignal<Temperature> temperatureSignal;
 
-	private final ArmFeedforward feedforward = new ArmFeedforward(kS, 0, kV, kA);
-
 	private double targetRobotRelativeDegrees = Constants.Turret.kOriginAngle.in(Degrees);
 	private double operatorOffsetDegrees = 0.0;
+	private double prevTurretVelRotPerSec = 0.0;
 
 	private volatile TurretUtil.TargetType activeTargetType = TurretUtil.TargetType.ClosestHUB;
 
@@ -125,15 +126,17 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 		config.MotorOutput.NeutralMode = brakeMode ? NeutralModeValue.Brake : NeutralModeValue.Coast;
 
 		config.Feedback.RotorToSensorRatio = 1;
-		config.Feedback.SensorToMechanismRatio = gearRatio;
+		config.Feedback.SensorToMechanismRatio = Constants.Turret.kGearRatio;
+		config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
+		config.MotionMagic.MotionMagicCruiseVelocity = 3;   // rot/s — ~1080°/s max slew
+		config.MotionMagic.MotionMagicAcceleration = 6;    // rot/s² — reaches cruise in 0.5s
+		config.MotionMagic.MotionMagicJerk = 50;           // rot/s³ — S-curve smoothing
 
 		config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-		config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = Units
-				.degreesToRotations(Constants.Turret.kMinAngleDegrees);
+		config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = Units.degreesToRotations(Constants.Turret.kMinAngleDegrees);
 
 		config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-		config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = Units
-				.degreesToRotations(Constants.Turret.kMaxAngleDegrees);
+		config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = Units.degreesToRotations(Constants.Turret.kMaxAngleDegrees);
 
 		motor.getConfigurator().apply(config);
 
@@ -143,7 +146,7 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 
 			pivotSim = new SingleJointedArmSim(
 					dcMotor,
-					gearRatio,
+					Constants.Turret.kGearRatio,
 					0.01,
 					0.1,
 					Units.degreesToRadians(Constants.Turret.kMinAngleDegrees),
@@ -153,9 +156,9 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 
 			// Sync raw rotor position with the origin angle BEFORE setPosition()
 			// so that resetRobotRelativeAngle() creates no internal offset
-			double originMechanismRotations = Units.degreesToRotations(
-					Constants.Turret.kOriginAngle.in(Degrees));
-			simState.setRawRotorPosition(originMechanismRotations * gearRatio);
+			double originMechanismRotations = Units.degreesToRotations(Constants.Turret.kOriginAngle.in(Degrees));
+
+			simState.setRawRotorPosition(originMechanismRotations * Constants.Turret.kGearRatio);
 		}
 
 		resetRobotRelativeAngle();
@@ -202,8 +205,8 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 
 		double turretVelocityRotPerSec = Units.radiansToRotations(pivotSim.getVelocityRadPerSec());
 
-		double rotorRotations = turretRotations * gearRatio;
-		double rotorVelocity = turretVelocityRotPerSec * gearRatio;
+		double rotorRotations = turretRotations * Constants.Turret.kGearRatio;
+		double rotorVelocity = turretVelocityRotPerSec * Constants.Turret.kGearRatio;
 
 		simState.setRawRotorPosition(rotorRotations);
 		simState.setRotorVelocity(rotorVelocity);
@@ -275,7 +278,21 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 	}
 
 	public void setRobotRelativeAngle(double angleDegrees) {
-		setRobotRelativeAngle(angleDegrees, 0);
+
+		if (!Constants.Turret.kTurretEnabled)
+			return;
+
+		angleDegrees += operatorOffsetDegrees;
+
+		angleDegrees = Math.max(Constants.Turret.kMinAngleDegrees,
+				Math.min(Constants.Turret.kMaxAngleDegrees, angleDegrees));
+
+		targetRobotRelativeDegrees = angleDegrees;
+
+		double positionRotations = Units.degreesToRotations(angleDegrees);
+
+		// MotionMagic for point-to-point moves (smooth profiled motion)
+		motor.setControl(positionRequest.withPosition(positionRotations));
 	}
 
 	public void setRobotRelativeAngle(double angleDegrees, double feedForwardVolts) {
@@ -292,10 +309,10 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 
 		double positionRotations = Units.degreesToRotations(angleDegrees);
 
+		// PositionVoltage for continuous tracking (no velocity/accel caps fighting FF)
 		motor.setControl(
-			positionRequest.withPosition(positionRotations)
-					// .withFeedForward(feedForwardVolts)
-					);
+			trackingRequest.withPosition(positionRotations)
+					.withFeedForward(feedForwardVolts));
 	}
 
 	public Command setRobotRelativeAngleCommand(double angleDegrees) {
@@ -375,9 +392,22 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 				// Total turret rate in robot frame = field angle rate - robot rotation
 				double turretRateRadPerSec = dThetaDt - omega;
 				double turretVelRotPerSec = turretRateRadPerSec / (2.0 * Math.PI);
-				double ffVolts = kV * turretVelRotPerSec;
 
-				setRobotRelativeAngle(solution.robotRelativeAngleDegrees, ffVolts);
+				// Acceleration from finite difference of desired velocity
+				double turretAccelRotPerSecSq = (turretVelRotPerSec - prevTurretVelRotPerSec) / 0.020;
+				prevTurretVelRotPerSec = turretVelRotPerSec;
+
+				// Full feedforward: static friction + velocity + acceleration
+				double ffVolts = kS * Math.signum(turretVelRotPerSec)
+					+ kV * turretVelRotPerSec
+					+ kA * turretAccelRotPerSecSq;
+
+				// Latency compensation: aim where target will be, not where it was
+				double latencyCompensationSeconds = TimedRobot.kDefaultPeriod;
+				double compensatedAngleDeg = solution.robotRelativeAngleDegrees
+					+ Math.toDegrees(turretRateRadPerSec) * latencyCompensationSeconds;
+
+				setRobotRelativeAngle(compensatedAngleDeg, ffVolts);
 
 			} else if (controller.isPresent()) {
 				// controller.get().setRumble(RumbleType.kBothRumble, 1);
