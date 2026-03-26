@@ -174,6 +174,10 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
         }
     }
 
+    public boolean isExtensionMoving() {
+        return isExtensionMoving;
+    }
+
     public double getExtensionPosition() {
         return m_extensionMotor.getEncoder().getPosition(); // output shaft rotations
     }

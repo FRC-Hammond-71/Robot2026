@@ -247,7 +247,8 @@ public class RobotContainer {
 
 		Controllers.Operator.rightBumper().onTrue(Robot.Intake.toggleExtensionCommand());
 
-		configureTestBindingsForShooterTuning();
+		RobotModeTriggers.test().onTrue(new PreflightCheckCommand(Robot));
+		// configureTestBindingsForShooterTuning();
 		// configureTestBindingsForManualShootingAndTurret();
 
 		Robot.Drivetrain.registerTelemetry(state -> {
