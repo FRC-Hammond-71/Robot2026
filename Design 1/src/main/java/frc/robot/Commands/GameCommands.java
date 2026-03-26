@@ -18,7 +18,7 @@ import frc.robot.util.dashboard.TurretUtil;
 
 public class GameCommands {
 
-	private static final double kTurretAlignToleranceDeg = 2;
+	private static final double kTurretAlignToleranceDeg = 4;
 
 	private final Robot Robot;
 
@@ -73,7 +73,7 @@ public class GameCommands {
 						controller),
 
 				Commands.sequence(
-						Commands.waitSeconds(0.1),
+						Commands.waitSeconds(0.02),
 						Commands.run(() -> {
 
 							var pose = Robot.Drivetrain.getState().Pose;
@@ -205,7 +205,7 @@ public class GameCommands {
 						controller),
 
 				Commands.sequence(
-						Commands.waitSeconds(0.1),
+						Commands.waitSeconds(0.02),
 						Commands.run(() -> {
 
 							var pose = Robot.Drivetrain.getState().Pose;

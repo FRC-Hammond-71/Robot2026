@@ -79,7 +79,7 @@ public class Constants {
 
 
     public static final class Spindexer {
-        public static final double kIndexingSpeed = 0.8;
+        public static final double kIndexingSpeed = 1.0;
     }
 
     public static final class Shooter {
@@ -104,7 +104,7 @@ public class Constants {
     
         public static final double kMaxSpeedRPS       = 80.0;
         public static final double kMinSpeedRPS       = 15.0;
-        public static final double kSpeedToleranceRPS = 2.5;
+        public static final double kSpeedToleranceRPS = 3.0;
         public static final double kSimFireRateSeconds = 0.2; // min time between shots in sim
     }
 
