@@ -3,13 +3,13 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 7.72141129032258,
-        "y": 4.495814516129033
+        "x": 7.5583991228070175,
+        "y": 4.640822368421052
       },
       "prevControl": null,
       "nextControl": {
-        "x": 7.728725806451614,
-        "y": 6.478048387096774
+        "x": 7.565713638936051,
+        "y": 6.623056239388793
       },
       "isLocked": false,
       "linkedName": "GL"
@@ -44,13 +44,18 @@
       "linkedName": "LL"
     }
   ],
-  "rotationTargets": [],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 0.5849056603773585,
+      "rotationDegrees": 90.0
+    }
+  ],
   "constraintZones": [],
   "pointTowardsZones": [],
   "eventMarkers": [],
   "globalConstraints": {
-    "maxVelocity": 1.5,
-    "maxAcceleration": 1.5,
+    "maxVelocity": 2.0,
+    "maxAcceleration": 1.75,
     "maxAngularVelocity": 180.0,
     "maxAngularAcceleration": 180.0,
     "nominalVoltage": 12.0,
@@ -64,7 +69,7 @@
   "folder": null,
   "idealStartingState": {
     "velocity": 0,
-    "rotation": -90.0
+    "rotation": -45.0
   },
   "useDefaultConstraints": true
 }

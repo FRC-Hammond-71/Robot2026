@@ -249,6 +249,10 @@ public class VisionSubsystem {
         Pose2d correctedCameraPose = new Pose2d(
             rawCameraPose.getTranslation(), cameraHeading);
 
+        Pose2d debugCameraPose = rawPose
+            .map(rp -> new Pose2d(rp.getTranslation(), cameraHeading))
+            .orElse(correctedCameraPose);
+
         LimelightOnTurretUtils.TransformDebug debug =
             LimelightOnTurretUtils.getRobotPoseFromCameraPoseDebug(
                 correctedCameraPose, turretAngleRad);
@@ -262,7 +266,7 @@ public class VisionSubsystem {
 
         Telemetry telemetry = new Telemetry(
             turretAngleDeg, pigeonHeadingDeg, cameraHeadingDeg,
-            correctedCameraPose, finalPose, odometryPose,
+            debugCameraPose, finalPose, odometryPose,
             correctionDelta, visionTimestamp, tagCount, yawRateDegPerSec);
 
         VisionMeasurement vm = new VisionMeasurement(finalPose, visionTimestamp);

@@ -24,15 +24,22 @@
           }
         },
         {
-          "type": "named",
+          "type": "parallel",
           "data": {
-            "name": "RetractIntakeCommand"
-          }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "GL-LL"
+            "commands": [
+              {
+                "type": "named",
+                "data": {
+                  "name": "RetractIntakeCommand"
+                }
+              },
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "GL-LL"
+                }
+              }
+            ]
           }
         },
         {
