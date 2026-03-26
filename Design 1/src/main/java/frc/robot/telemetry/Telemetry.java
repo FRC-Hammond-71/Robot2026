@@ -24,7 +24,8 @@ public class Telemetry {
      * @param maxSpeed Maximum speed in meters per second
      */
     public Telemetry(double maxSpeed) {
-        SignalLogger.start();
+        //  We can't use, only 2 MB available on RoboRIO.
+        // SignalLogger.start();
         driveTelemetry = new DriveTelemetry(maxSpeed);
         turretTelemetry = new TurretTelemetry();
         shotTelemetry = new ShotTelemetry();

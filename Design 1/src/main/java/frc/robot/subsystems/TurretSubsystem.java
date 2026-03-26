@@ -133,10 +133,10 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 		config.MotionMagic.MotionMagicJerk = 50;           // rot/s³ — S-curve smoothing
 
 		config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-		config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = Units.degreesToRotations(Constants.Turret.kMinAngleDegrees);
+		config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = Units.degreesToRotations(Constants.Turret.kMinAngleDegrees - 2.5);
 
 		config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-		config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = Units.degreesToRotations(Constants.Turret.kMaxAngleDegrees);
+		config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = Units.degreesToRotations(Constants.Turret.kMaxAngleDegrees + 2.5);
 
 		motor.getConfigurator().apply(config);
 
@@ -149,8 +149,8 @@ public class TurretSubsystem extends SubsystemWithMapleSimSimulation {
 					Constants.Turret.kGearRatio,
 					0.01,
 					0.1,
-					Units.degreesToRadians(Constants.Turret.kMinAngleDegrees),
-					Units.degreesToRadians(Constants.Turret.kMaxAngleDegrees),
+					Units.degreesToRadians(Constants.Turret.kMinAngleDegrees - 2.5),
+					Units.degreesToRadians(Constants.Turret.kMaxAngleDegrees + 2.5),
 					false,
 					Units.degreesToRadians(Constants.Turret.kOriginAngle.in(Degrees)));
 

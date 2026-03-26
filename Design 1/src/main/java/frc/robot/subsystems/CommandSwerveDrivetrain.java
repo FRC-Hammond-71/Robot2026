@@ -166,7 +166,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
             AutoBuilder.configure(
                     () -> getState().Pose, // Supplier of current robot pose
-                    this::resetPose, // Seed odometry pose at auto start
+                    // this::resetPose, // Seed odometry pose at auto start
+                    (resetTo) -> {},
                     () -> getState().Speeds, // Supplier of current robot speeds
                     // Consumer of ChassisSpeeds and feedforwards to drive the robot
                     (speeds, feedforwards) -> setControl(
@@ -175,8 +176,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                                     .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())
                                     ),
                     new PPHolonomicDriveController(
-                            new PIDConstants(5, 0, 0.1),  // translation
-                            new PIDConstants(7, 0, 0.2)), // rotation
+                            new PIDConstants(3, 0, 0),  // translation
+                            new PIDConstants(Math.PI / 2, 0, 0)), // rotation
                     config,
                     // Assume the path needs to be flipped for Red vs Blue, this is normally the
                     // case

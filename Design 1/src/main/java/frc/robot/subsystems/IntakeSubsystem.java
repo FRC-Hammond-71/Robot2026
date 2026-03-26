@@ -121,7 +121,7 @@ public class IntakeSubsystem extends SubsystemWithMapleSimSimulation {
         } else if (isExtended) {
             intake(Constants.Intake.kHoldSpeed);
         } else {
-            stop();
+            intake(Constants.Intake.kRetractedFeedSpeed);
         }
     }
 

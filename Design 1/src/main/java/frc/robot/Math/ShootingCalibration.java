@@ -243,7 +243,11 @@ public class ShootingCalibration {
         cal.addHubShot(4.75, 47.0);
         cal.addHubShot(5.00, 49.0);
 
+        // ground shot data, primarly passing long distances
+        cal.addGroundShot(48, 6.254);
+
         cal.buildCorrectionCurve();
+
         return cal;
     }
 }

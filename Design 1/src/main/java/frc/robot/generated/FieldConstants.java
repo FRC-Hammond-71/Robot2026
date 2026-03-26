@@ -26,8 +26,8 @@ public class FieldConstants{
     public static final Translation3d BLUE_FAR_SIDE = new Translation3d(0.75, 7.25, 0);
 
 
-    public static final Pose3d leftPassTarget = new Pose3d(3.5, 6.0, 0, new Rotation3d());
-    public static final Pose3d rightPassTarget = new Pose3d(3.5, 1.960, 0, new Rotation3d());
+    public static final Pose3d leftPassTarget = new Pose3d(2.25, 6.0, 0, new Rotation3d());
+    public static final Pose3d rightPassTarget = new Pose3d(2.25, 1.960, 0, new Rotation3d());
 
 
     // public static Translation3d getAllianceHub() {

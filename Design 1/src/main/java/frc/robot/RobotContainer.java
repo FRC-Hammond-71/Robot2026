@@ -57,6 +57,9 @@ public class RobotContainer {
 					.withDeadband(Constants.Drivetrain.kCruiseSpeed * 0.1)
 					.withDriveRequestType(DriveRequestType.Velocity);
 
+	private final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
+	private final SwerveRequest.SwerveDriveBrake xLockRequest = new SwerveRequest.SwerveDriveBrake();
+
 	private Rotation2d headingKeepTarget = null;
 	private boolean wasRotating = false;
 
@@ -69,15 +72,16 @@ public class RobotContainer {
 
 	private final Optional<GenericHID> driverController = Optional.of(Controllers.Joystick.getHID());
 
-	private SlewRateLimiter xLimiter = new SlewRateLimiter(Constants.Drivetrain.kCruiseSpeed * 4);
-	private SlewRateLimiter yLimiter = new SlewRateLimiter(Constants.Drivetrain.kCruiseSpeed * 4);
+	private SlewRateLimiter xLimiter = new SlewRateLimiter(TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 2);
+	private SlewRateLimiter yLimiter = new SlewRateLimiter(TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 2);
+	private SlewRateLimiter rotLimiter = new SlewRateLimiter(Math.PI * 4);
 
 
 	public RobotContainer(Robot robot) {
 
 		this.Robot = robot;
 
-		driveHeadingKeep.HeadingController.setPID(2, 0, 0.1);
+		driveHeadingKeep.HeadingController.setPID(7, 0, 0.3);
 		driveHeadingKeep.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
 		gameCommands = new GameCommands(Robot);
@@ -145,20 +149,28 @@ public class RobotContainer {
 				currentSpeed *= speedScale;
 
 				double rotInput = MathUtil.applyDeadband(-Controllers.Joystick.getRightX(), 0.1);
+				double rotVel = rotLimiter.calculate(rotInput * Constants.Drivetrain.kCruiseAngularRate.in(RadiansPerSecond) * speedScale);
 
 				double velX = xLimiter.calculate(-Controllers.Joystick.getLeftY() * currentSpeed);
 				double velY = yLimiter.calculate(-Controllers.Joystick.getLeftX() * currentSpeed);
 
-				boolean isRotating = rotInput != 0;
+				boolean isTranslating = Math.abs(velX) > 0.01 || Math.abs(velY) > 0.01;
+				boolean isRotating = rotVel != 0;
+
+				// No input at all — coast idle (no steer correction, no X-lock)
+				if (!isTranslating && !isRotating) {
+					wasRotating = false;
+					headingKeepTarget = null;
+					return idleRequest;
+				}
 
 				if (isRotating) {
 					wasRotating = true;
 					headingKeepTarget = null;
 					return drive
-							.withVelocityX(velX)
-							.withVelocityY(velY)
-							.withRotationalRate(rotInput *
-									Constants.Drivetrain.kCruiseAngularRate.in(RadiansPerSecond) * speedScale);
+						.withVelocityX(velX)
+						.withVelocityY(velY)
+						.withRotationalRate(rotVel);
 				}
 
 				// Transition from rotating to not rotating — capture heading with gyro latency compensation
@@ -187,10 +199,8 @@ public class RobotContainer {
 		Controllers.Operator.pov(90).onTrue(Commands.runOnce(() ->
 				Robot.Turret.adjustOperatorOffsetDegrees(0.1), Robot.Turret));
 
-		final var idle = new SwerveRequest.Idle();
-
 		RobotModeTriggers.disabled()
-				.whileTrue(Robot.Drivetrain.applyRequest(() -> idle).ignoringDisable(true));
+				.whileTrue(Robot.Drivetrain.applyRequest(() -> idleRequest).ignoringDisable(true));
 
 		RobotModeTriggers.teleop().onTrue(Commands.runOnce(() -> {
 			headingKeepTarget = null;
@@ -226,6 +236,9 @@ public class RobotContainer {
 		RobotModeTriggers.teleop()
 				.and(Controllers.Joystick.leftBumper())
 				.whileTrue(Robot.Turret.neutralOutputCommand());
+
+		Controllers.Joystick.rightBumper()
+				.whileTrue(Robot.Drivetrain.applyRequest(() -> xLockRequest));
 
 		Controllers.Joystick.start().onTrue(Robot.Drivetrain.runOnce(() -> {
 				Robot.Drivetrain.seedFieldCentric();
@@ -312,6 +325,7 @@ public class RobotContainer {
 
 	private void configureTestBindingsForShooterTuning() {
 
+		RobotModeTriggers.test().onTrue(Robot.Turret.neutralOutputCommand()); // Don't auto aim.
 		RobotModeTriggers.test().and(Controllers.Joystick.b()).onTrue(new ShooterTuningCommand(Robot.Shooter,
 				Robot.Spindexer,
 				RotationsPerSecond.of(Constants.Shooter.kMinSpeedRPS),

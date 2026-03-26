@@ -54,20 +54,20 @@ public class Constants {
         public static final Angle kOriginAngle = Degrees.of(180);
 
         // Shooting range limits (meters)
-        public static final double kMinShootingDistance = 1.8288;
-        public static final double kMaxShootingDistance = 5.9436;
+        public static final double kMinShootingDistance = 2;
+        public static final double kMaxShootingDistance = 8.5;
 
         // Motor and control constants
         public static final double kGearRatio = (48.0 / 14.0) * (120.0 / 35.0); // (48.0 / 14.0) * (120.0 / 35.0) / 3; // 18t -> 48t (same shaft) -> 35t -> 120t
         public static final double kKP = 90; // Proportional gain (dimensionless)
-        public static final double kKI = 5; // Integral gain (reduced to prevent overshoot during dynamic tracking)
-        public static final double kKD = 2; // Derivative gain (dimensionless)
+        public static final double kKI = 15; // Integral gain (reduced to prevent overshoot during dynamic tracking)
+        public static final double kKD = 1; // Derivative gain (dimensionless)
         public static final double kKS = 0.1; // Static friction feedforward (volts)
         public static final double kKV = 1.38; // Velocity feedforward (V·s per mechanism rotation, tune empirically)
-        public static final double kKA = 0.01; // Acceleration feedforward (volt-seconds² per radian)
+        public static final double kKA = 0.01; // Acceleration feedforward (volPt-seconds² per radian)
         public static final double kKG = 0; // Gravity feedforward (volts) - Unused for turrets
-        public static final double kMaxVelocity = 4; // Maximum velocity (rad/s)
-        public static final double kMaxAcceleration = 4; // Maximum acceleration (rad/s²)
+        public static final double kMaxVelocity = Math.PI * 2; // Maximum velocity (rad/s)
+        public static final double kMaxAcceleration = Math.PI * 2; // Maximum acceleration (rad/s²)
         public static final boolean kShootOnTheMove = true; // True = use leading shot (accounts for robot velocity), false = static shot
         public static final boolean kTurretEnabled = true; // Set false if turret is mechanically/electrically broken; holds at min angle
         public static final boolean kBrakeMode = true; // Brake mode enabled (boolean)
@@ -120,6 +120,7 @@ public class Constants {
         public static final double kExtensionStallThreshold = 30;  // stall detection threshold (amps) — must be below kExtensionCurrentLimit
         public static final double kExtensionStallDurationSeconds = 0.25; // sustain overcurrent this long before stopping
         public static final double kHoldSpeed = 1; // duty cycle to hold game pieces while extended
+        public static final double kRetractedFeedSpeed = -0.10; // duty cycle to push pieces into hopper when retracted
         public static final int kMaxGamePieces = 30; // max fuel held at once in sim
     }
 
