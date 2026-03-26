@@ -87,6 +87,9 @@ public class Robot extends TimedRobot {
         frc.robot.generated.FieldConstants.forceRedAlliance =
             edu.wpi.first.wpilibj.smartdashboard.SmartDashboard.getBoolean("ForceRedAlliance", false);
 
+        double turretAngleRad = VisionSubsystem.turretRotationsToRadians(Turret.getPosition());
+        visionTelemetry.publishPoses(Drivetrain.getState().Pose, turretAngleRad);
+
         try {
             if (Vision != null) {
                 var measOpt = getVisionMeasurement();

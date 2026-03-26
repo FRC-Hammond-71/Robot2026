@@ -25,6 +25,9 @@ public final class VisionTelemetry {
     private final DoublePublisher tagCount;
     private final DoublePublisher yawRate;
 
+    private final StructPublisher<Pose2d> turretFieldPose;
+    private final StructPublisher<Pose2d> cameraFieldPose;
+
     // --- Debug only (null in competition mode) ---
     private final StructPublisher<Pose2d> cameraPose;
     private final StructPublisher<Pose2d> rawPose;
@@ -45,6 +48,10 @@ public final class VisionTelemetry {
         correctionDelta = table.getDoubleTopic("CorrectionDeltaM").publish();
         tagCount = table.getDoubleTopic("TagCount").publish();
         yawRate = table.getDoubleTopic("YawRateDegPerSec").publish();
+
+        // Always-on field poses
+        turretFieldPose = table.getStructTopic("TurretFieldPose", Pose2d.struct).publish();
+        cameraFieldPose = table.getStructTopic("CameraFieldPose", Pose2d.struct).publish();
 
         // Debug publishers — only allocate if not in competition mode
         if (!competitionMode) {
@@ -67,6 +74,27 @@ public final class VisionTelemetry {
             cameraHeadingDeg = null;
             visionTimestamp = null;
         }
+    }
+
+    public void publishPoses(Pose2d robotPose, double turretAngleRad) {
+        double robotHeading = robotPose.getRotation().getRadians();
+        double cosR = Math.cos(robotHeading);
+        double sinR = Math.sin(robotHeading);
+
+        double tx = Constants.Turret.kTurretOffsetX;
+        double ty = Constants.Turret.kTurretOffsetY;
+        double turretFieldX = robotPose.getX() + cosR * tx - sinR * ty;
+        double turretFieldY = robotPose.getY() + sinR * tx + cosR * ty;
+        double turretHeading = robotHeading + turretAngleRad;
+        turretFieldPose.set(new Pose2d(turretFieldX, turretFieldY, new Rotation2d(turretHeading)));
+
+        double cosT = Math.cos(turretHeading);
+        double sinT = Math.sin(turretHeading);
+        double cx = Constants.Vision.kCamFromTurretX;
+        double cy = Constants.Vision.kCamFromTurretY;
+        double camFieldX = turretFieldX + cosT * cx - sinT * cy;
+        double camFieldY = turretFieldY + sinT * cx + cosT * cy;
+        cameraFieldPose.set(new Pose2d(camFieldX, camFieldY, new Rotation2d(turretHeading)));
     }
 
     /** Publish all telemetry from a successful vision result. */
