@@ -44,7 +44,16 @@
       "linkedName": "GL"
     }
   ],
-  "rotationTargets": [],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 0.4438502673796791,
+      "rotationDegrees": 90.0
+    },
+    {
+      "waypointRelativePos": 1.7754010695187168,
+      "rotationDegrees": -45.0
+    }
+  ],
   "constraintZones": [],
   "pointTowardsZones": [],
   "eventMarkers": [],
