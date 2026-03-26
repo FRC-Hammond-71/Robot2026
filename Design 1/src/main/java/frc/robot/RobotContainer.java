@@ -192,6 +192,11 @@ public class RobotContainer {
 		RobotModeTriggers.disabled()
 				.whileTrue(Robot.Drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
+		RobotModeTriggers.teleop().onTrue(Commands.runOnce(() -> {
+			headingKeepTarget = null;
+			wasRotating = false;
+		}));
+
 		Robot.Turret.setDefaultCommand(
 				Robot.Turret.autoAimCommand(
 						() -> Robot.Drivetrain.getState().Pose,
