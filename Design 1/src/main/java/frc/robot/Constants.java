@@ -79,7 +79,7 @@ public class Constants {
 
 
     public static final class Spindexer {
-        public static final double kIndexingSpeed = 1.0;
+        public static final double kIndexingSpeed = 0.8;
     }
 
     public static final class Shooter {
