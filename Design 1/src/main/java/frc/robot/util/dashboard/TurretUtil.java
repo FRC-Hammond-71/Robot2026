@@ -66,7 +66,8 @@ public class TurretUtil {
     private static final double TURRET_OFFSET_X = Constants.Turret.kTurretOffsetX;
     private static final double TURRET_OFFSET_Y = Constants.Turret.kTurretOffsetY;
 
-    private static final ShootingCalibration calibration = ShootingCalibration.createDefault();
+    private static final ShootingCalibration calibration = ShootingCalibration.createHubDefault();
+    private static final ShootingCalibration passingCalibration = ShootingCalibration.createPassingDefault();
 
     /** Pre-converted 2D field targets. */
     private static final Pose2d LEFT_PASS_TARGET = FieldConstants.leftPassTarget.toPose2d();
@@ -304,7 +305,8 @@ public class TurretUtil {
 
     /** Returns calibrated shooting parameters for the given distance and target. */
     private static ShootingCalibration.ShootingParameters getTableParams(double distanceMeters, TargetType target) {
-        return calibration.getParameters(distanceMeters, getTargetHeight(target));
+        ShootingCalibration cal = (target == TargetType.LEFT_PASS || target == TargetType.RIGHT_PASS) ? passingCalibration : calibration;
+        return cal.getParameters(distanceMeters, getTargetHeight(target));
     }
 
     /** Returns the shared calibration instance for diagnostics. */

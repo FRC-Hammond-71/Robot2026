@@ -223,8 +223,7 @@ public class ShootingCalibration {
     // FACTORY
     // ========================
 
-    /** Creates the default calibration populated with empirical hub data from 3/19/2026. */
-    public static ShootingCalibration createDefault() {
+    public static ShootingCalibration createHubDefault() {
         ShootingCalibration cal = new ShootingCalibration(
                 42.0,
                 Constants.Shooter.kWheelDiameterMeters,
@@ -243,8 +242,23 @@ public class ShootingCalibration {
         cal.addHubShot(4.75, 47.0);
         cal.addHubShot(5.00, 49.0);
 
-        // ground shot data, primarly passing long distances
-        cal.addGroundShot(48, 6.254);
+        cal.buildCorrectionCurve();
+
+        return cal;
+    }
+
+    public static ShootingCalibration createPassingDefault() {
+        ShootingCalibration cal = new ShootingCalibration(
+                42.0,
+                Constants.Shooter.kWheelDiameterMeters,
+                Constants.Shooter.kSlipFactor,
+                Constants.Shooter.kLaunchHeightMeters);
+
+        cal.addGroundShot(42.5, 5.0); // TEMP: Extrapolated
+        cal.addGroundShot(46.9, 6.0); // TEMP: Extrapolated
+        cal.addGroundShot(48.0, 6.254); // Measured
+        cal.addGroundShot(51.0, 7.0); // TEMP: Extrapolated
+        cal.addGroundShot(54.8, 8.0); // TEMP: Extrapolated
 
         cal.buildCorrectionCurve();
 
